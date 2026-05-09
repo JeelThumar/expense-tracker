@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
+
+:root {
+  /* CRED-inspired Color Palette */
+  --bg-main: #0a0a0a;
+  --bg-card: #141414;
+  --bg-card-elevated: #1e1e1e;
+  
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-tertiary: #6e6e6e;
+  
+  --accent-primary: #ffffff; /* Minimal accent, high contrast */
+  --accent-success: #34c759;
+  --accent-danger: #ff3b30;
+  --accent-warning: #ff9f0a;
+
+  --border-color: rgba(255, 255, 255, 0.08);
+  
+  --font-primary: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-primary);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure native date picker icons are visible in dark mode */
+input[type="date"], input[type="month"], input[type="time"] {
+  color-scheme: dark;
+}
+
+/* Mobile Wrapper Container */
+#root {
+  width: 100%;
+  max-width: 480px; /* Restrict width to look like a mobile app even on desktop */
+  min-height: 100vh;
+  margin: 0 auto;
+  position: relative;
+  background-color: var(--bg-main);
+  box-shadow: 0 0 20px rgba(0,0,0,0.5); /* Subtle shadow on desktop */
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography Utilities */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+/* Utility Classes */
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-success { color: var(--accent-success); }
+.text-danger { color: var(--accent-danger); }
+
+/* Common UI Elements */
+.card {
+  background: var(--bg-card);
+  border-radius: 20px;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.card:active {
+  transform: scale(0.98);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--text-primary);
+  color: var(--bg-main);
+  border: none;
+  border-radius: 12px;
+  padding: 16px 24px;
+  font-weight: 600;
+  font-family: var(--font-primary);
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.btn:active {
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+
+/* Bottom Sheet Animation */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.bottom-sheet {
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
