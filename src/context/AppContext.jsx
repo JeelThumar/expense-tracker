@@ -210,11 +210,22 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const login = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Login failed", error);
+  const login = async (guestData = null) => {
+    if (guestData) {
+      // Manual guest login
+      setUser({
+        uid: 'guest_' + Date.now(),
+        displayName: `${guestData.firstName || ''} ${guestData.lastName || ''}`.trim(),
+        isGuest: true
+      });
+      setIsLoading(false);
+    } else {
+      // Google Login
+      try {
+        await signInWithPopup(auth, googleProvider);
+      } catch (error) {
+        console.error("Login failed", error);
+      }
     }
   };
 
