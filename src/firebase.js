@@ -1,5 +1,4 @@
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -18,15 +17,6 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize services with error handling
-let analytics = null;
-try {
-  analytics = getAnalytics(app);
-} catch (err) {
-  console.warn("Firebase Analytics could not be initialized:", err);
-}
-
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
-export { analytics };
