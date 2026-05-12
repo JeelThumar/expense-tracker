@@ -136,13 +136,15 @@ export const AppProvider = ({ children }) => {
     const { date, ...rest } = txn;
     const newTxn = { ...rest, date: finalDate.toISOString() };
 
-    if (user) {
+    // Save to Firestore ONLY if it's a real authenticated user
+    if (user && !user.isGuest) {
       try {
         await addDoc(collection(db, 'users', user.uid, 'transactions'), newTxn);
       } catch (err) {
         console.error("AppContext: Failed to save transaction:", err);
       }
     } else {
+      // Save to local state for Guests
       setTransactions(prev => [{ ...newTxn, id: Date.now().toString() }, ...prev]);
     }
   };
@@ -153,8 +155,12 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteTransaction = async (id) => {
-    if (user) {
-      await deleteDoc(doc(db, 'users', user.uid, 'transactions', id));
+    if (user && !user.isGuest) {
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'transactions', id));
+      } catch (err) {
+        console.error("Delete failed:", err);
+      }
     } else {
       setTransactions(prev => prev.filter(t => t.id !== id));
     }
@@ -169,8 +175,12 @@ export const AppProvider = ({ children }) => {
     const { date, ...rest } = updatedTxn;
     const finalTxn = { ...rest, date: finalDate.toISOString() };
     
-    if (user) {
-      await updateDoc(doc(db, 'users', user.uid, 'transactions', id), finalTxn);
+    if (user && !user.isGuest) {
+      try {
+        await updateDoc(doc(db, 'users', user.uid, 'transactions', id), finalTxn);
+      } catch (err) {
+        console.error("Update failed:", err);
+      }
     } else {
       setTransactions(prev => prev.map(t => t.id === id ? { ...finalTxn, id } : t));
     }
@@ -191,7 +201,7 @@ export const AppProvider = ({ children }) => {
     const { date, ...rest } = txn;
     const newTxn = { ...rest, date: finalDate.toISOString() };
 
-    if (user) {
+    if (user && !user.isGuest) {
       try {
         await addDoc(collection(db, 'users', user.uid, 'ledger'), newTxn);
       } catch (err) {
@@ -203,8 +213,12 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteLedgerTxn = async (id) => {
-    if (user) {
-      await deleteDoc(doc(db, 'users', user.uid, 'ledger', id));
+    if (user && !user.isGuest) {
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'ledger', id));
+      } catch (err) {
+        console.error("Delete ledger failed:", err);
+      }
     } else {
       setLedger(prev => prev.filter(t => t.id !== id));
     }
@@ -287,8 +301,12 @@ export const AppProvider = ({ children }) => {
       settings,
       updateSettings: async (newSettings) => {
         const merged = { ...settings, ...newSettings };
-        if (user) {
-          await setDoc(doc(db, 'users', user.uid), { settings: merged }, { merge: true });
+        if (user && !user.isGuest) {
+          try {
+            await setDoc(doc(db, 'users', user.uid), { settings: merged }, { merge: true });
+          } catch (err) {
+            console.error("Settings save failed:", err);
+          }
         } else {
           setSettings(merged);
         }
