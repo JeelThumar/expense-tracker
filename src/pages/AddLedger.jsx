@@ -62,42 +62,61 @@ export const AddLedger = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-main)' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-main)', animation: 'fadeIn 0.6s ease' }}>
       {/* Header */}
       <div style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button 
           onClick={() => navigate(-1)} 
-          style={{ background: 'var(--bg-card)', border: 'none', width: '40px', height: '40px', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)', cursor: 'pointer' }}
+          style={{ 
+            background: 'var(--bg-card)', border: '1px solid var(--border-color)', 
+            width: '44px', height: '44px', borderRadius: '14px', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+            color: 'var(--text-primary)', cursor: 'pointer' 
+          }}
         >
           <IoCloseOutline size={24} />
         </button>
+        <h2 style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '-0.5px' }}>Add Transfer</h2>
+        <div style={{ width: '44px' }} />
       </div>
 
-      <div style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, padding: '24px 20px', display: 'flex', flexDirection: 'column' }}>
         
         {/* Toggle Type */}
-        <div style={{ display: 'flex', background: 'var(--bg-card)', borderRadius: '20px', padding: '6px', marginBottom: '32px' }}>
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', borderRadius: '20px', padding: '6px', marginBottom: '40px', border: '1px solid var(--border-color)' }}>
           <button
             onClick={() => setType('lent')}
-            style={{ flex: 1, padding: '12px', borderRadius: '16px', border: 'none', background: type === 'lent' ? 'var(--bg-main)' : 'transparent', color: type === 'lent' ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: type === 'lent' ? '0 4px 12px rgba(0,0,0,0.1)' : 'none' }}
+            style={{ 
+              flex: 1, padding: '14px', borderRadius: '16px', border: 'none', 
+              background: type === 'lent' ? '#ffffff' : 'transparent', 
+              color: type === 'lent' ? '#000000' : 'var(--text-tertiary)', 
+              fontWeight: '800', fontSize: '14px', cursor: 'pointer', transition: 'all 0.3s',
+              textTransform: 'uppercase', letterSpacing: '1px'
+            }}
           >
             I Gave
           </button>
           <button
             onClick={() => setType('borrowed')}
-            style={{ flex: 1, padding: '12px', borderRadius: '16px', border: 'none', background: type === 'borrowed' ? 'var(--bg-main)' : 'transparent', color: type === 'borrowed' ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: type === 'borrowed' ? '0 4px 12px rgba(0,0,0,0.1)' : 'none' }}
+            style={{ 
+              flex: 1, padding: '14px', borderRadius: '16px', border: 'none', 
+              background: type === 'borrowed' ? '#ffffff' : 'transparent', 
+              color: type === 'borrowed' ? '#000000' : 'var(--text-tertiary)', 
+              fontWeight: '800', fontSize: '14px', cursor: 'pointer', transition: 'all 0.3s',
+              textTransform: 'uppercase', letterSpacing: '1px'
+            }}
           >
             I Got
           </button>
         </div>
 
         {/* Amount Input */}
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <span style={{ fontSize: '16px', color: 'var(--text-secondary)', fontWeight: '500', marginBottom: '8px', display: 'block' }}>
+        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: '800', marginBottom: '12px', display: 'block', textTransform: 'uppercase', letterSpacing: '2px' }}>
             Amount
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-            <span style={{ fontSize: '40px', fontWeight: '700', color: 'var(--text-primary)' }}>₹</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '40px', fontWeight: '900', color: type === 'lent' ? 'var(--accent-success)' : 'var(--accent-danger)', opacity: 0.8 }}>₹</span>
             <input
               type="text"
               inputMode="decimal"
@@ -105,8 +124,8 @@ export const AddLedger = () => {
               onChange={handleAmountChange}
               placeholder="0"
               style={{
-                fontSize: '56px',
-                fontWeight: '700',
+                fontSize: '64px',
+                fontWeight: '900',
                 color: 'var(--text-primary)',
                 background: 'transparent',
                 border: 'none',
@@ -115,24 +134,26 @@ export const AddLedger = () => {
                 maxWidth: '100%',
                 outline: 'none',
                 textAlign: 'center',
-                padding: 0
+                padding: 0,
+                letterSpacing: '-2px'
               }}
             />
           </div>
         </div>
 
         {/* Other Fields */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, position: 'relative' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', flex: 1, position: 'relative' }}>
           <div style={{ position: 'relative' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Recipient</label>
             <input
               type="text"
-              placeholder="Person Name (e.g. Virat)"
+              placeholder="Who are you dealing with?"
               value={person}
               onChange={handlePersonChange}
               onFocus={() => setShowDropdown(true)}
-              style={{ ...inputStyle, paddingRight: '40px' }}
+              style={{ ...inputStyle, paddingRight: '44px' }}
             />
-            <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)' }}>
+            <div style={{ position: 'absolute', right: '16px', top: '42px', pointerEvents: 'none', color: 'var(--text-tertiary)' }}>
               <IoChevronDown size={20} />
             </div>
             
@@ -149,22 +170,24 @@ export const AddLedger = () => {
                   right: 0,
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-color)',
-                  borderRadius: '16px',
+                  borderRadius: '18px',
                   marginTop: '8px',
                   maxHeight: '200px',
                   overflowY: 'auto',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                  zIndex: 10
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                  zIndex: 10,
+                  animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                 }}>
                 {filteredPeople.map(p => (
                   <div
                     key={p}
                     onClick={() => handleSelectPerson(p)}
                     style={{
-                      padding: '16px',
-                      borderBottom: '1px solid var(--border-color)',
+                      padding: '16px 20px',
+                      borderBottom: '1px solid rgba(255,255,255,0.05)',
                       cursor: 'pointer',
-                      fontSize: '16px',
+                      fontSize: '15px',
+                      fontWeight: '600',
                       color: 'var(--text-primary)'
                     }}
                   >
@@ -176,35 +199,49 @@ export const AddLedger = () => {
           )}
         </div>
           
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            onClick={(e) => e.target.showPicker && e.target.showPicker()}
-            style={inputStyle}
-          />
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              onClick={(e) => e.target.showPicker && e.target.showPicker()}
+              style={inputStyle}
+            />
+          </div>
 
-          <input
-            type="text"
-            placeholder="Add a note (optional)"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            style={inputStyle}
-          />
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Note</label>
+            <textarea
+              placeholder="What's this for?"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              style={{ 
+                ...inputStyle, 
+                height: 'auto', 
+                minHeight: '100px', 
+                resize: 'none', 
+                paddingTop: '16px',
+                lineHeight: '1.5'
+              }}
+            />
+          </div>
         </div>
 
         <button
           onClick={handleSave}
           disabled={!amount || isNaN(parseFloat(amount)) || !person.trim()}
           style={{
-            width: '100%', padding: '18px', borderRadius: '20px', border: 'none',
-            background: (!amount || !person.trim()) ? 'var(--border-color)' : 'var(--text-primary)',
-            color: (!amount || !person.trim()) ? 'var(--text-tertiary)' : 'var(--bg-main)',
-            fontSize: '18px', fontWeight: '600', cursor: (!amount || !person.trim()) ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s', marginTop: '20px'
+            width: '100%', padding: '20px', borderRadius: '20px', border: 'none',
+            background: (!amount || !person.trim()) ? 'rgba(255,255,255,0.05)' : '#ffffff',
+            color: (!amount || !person.trim()) ? 'var(--text-tertiary)' : '#000000',
+            fontSize: '17px', fontWeight: '800', cursor: (!amount || !person.trim()) ? 'not-allowed' : 'pointer',
+            transition: 'all 0.3s', marginTop: '20px', marginBottom: '20px',
+            boxShadow: (!amount || !person.trim()) ? 'none' : '0 10px 20px rgba(255,255,255,0.05)'
           }}
         >
-          Save Transfer
+          Confirm Transfer
         </button>
 
       </div>

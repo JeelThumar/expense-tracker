@@ -30,58 +30,69 @@ export const Friends = () => {
   const totalGot = ledger.reduce((acc, curr) => curr.type === 'borrowed' ? acc + curr.amount : acc, 0);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-        <div style={{ flex: 1, background: 'var(--bg-card)', padding: '12px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span className="text-secondary" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total You Gave</span>
-          <span style={{ color: 'var(--accent-success)', fontSize: '16px', fontWeight: '600' }}>₹{totalGave.toFixed(0)}</span>
+    <div style={{ padding: '20px 20px 24px', animation: 'fadeIn 0.6s ease' }}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '28px' }}>
+        <div style={{ flex: 1, background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)', padding: '16px', borderRadius: '18px', border: '1px solid var(--border-color)', position: 'relative' }}>
+          <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700' }}>You Gave</span>
+          <div style={{ color: 'var(--accent-success)', fontSize: '18px', fontWeight: '800', marginTop: '4px' }}>₹{totalGave.toLocaleString()}</div>
         </div>
-        <div style={{ flex: 1, background: 'var(--bg-card)', padding: '12px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span className="text-secondary" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total You Got</span>
-          <span style={{ color: 'var(--accent-danger)', fontSize: '16px', fontWeight: '600' }}>₹{totalGot.toFixed(0)}</span>
+        <div style={{ flex: 1, background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)', padding: '16px', borderRadius: '18px', border: '1px solid var(--border-color)', position: 'relative' }}>
+          <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700' }}>You Got</span>
+          <div style={{ color: 'var(--accent-danger)', fontSize: '18px', fontWeight: '800', marginTop: '4px' }}>₹{totalGot.toLocaleString()}</div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '100px' }}>
         {uniquePeople.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <p className="text-secondary" style={{ fontSize: '16px' }}>No friends tracked yet.</p>
-            <p className="text-tertiary" style={{ fontSize: '14px', marginTop: '8px' }}>Add a transfer to get started.</p>
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-tertiary)' }}>
+            No friends tracked yet.
           </div>
         ) : (
-          uniquePeople.map(person => {
+          uniquePeople.map((person, index) => {
             const net = balances[person];
             let statusText = "Settled up";
             let statusColor = "var(--text-tertiary)";
             
             if (net > 0) {
-              statusText = `Owes you ₹${net.toFixed(2)}`;
+              statusText = `Owes you ₹${net.toLocaleString()}`;
               statusColor = "var(--accent-success)";
             } else if (net < 0) {
-              statusText = `You owe ₹${Math.abs(net).toFixed(2)}`;
+              statusText = `You owe ₹${Math.abs(net).toLocaleString()}`;
               statusColor = "var(--accent-danger)";
             }
 
             return (
-              <Card 
+              <div 
                 key={person} 
-                style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                 onClick={() => navigate(`/friends/${encodeURIComponent(person)}`)}
+                className="animate-slide-up"
+                style={{ 
+                  animationDelay: `${index * 0.05}s`,
+                  background: 'var(--bg-card)',
+                  padding: '16px',
+                  borderRadius: '18px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  border: '1px solid var(--border-color)',
+                  cursor: 'pointer'
+                }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{
-                    width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-main)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', color: 'var(--text-primary)'
+                    width: '44px', height: '44px', borderRadius: '14px', background: 'rgba(255,255,255,0.03)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', color: 'var(--text-primary)',
+                    fontSize: '18px', border: '1px solid var(--border-color)'
                   }}>
                     {person.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div style={{ fontWeight: '600', fontSize: '16px', marginBottom: '4px' }}>{person}</div>
-                    <div style={{ fontSize: '14px', color: statusColor, fontWeight: '500' }}>{statusText}</div>
+                    <div style={{ fontWeight: '700', fontSize: '15px' }}>{person}</div>
+                    <div style={{ fontSize: '12px', color: statusColor, fontWeight: '600', marginTop: '2px' }}>{statusText}</div>
                   </div>
                 </div>
-                <IoArrowForward size={20} color="var(--text-tertiary)" />
-              </Card>
+                <IoArrowForward size={18} color="var(--text-tertiary)" />
+              </div>
             );
           })
         )}

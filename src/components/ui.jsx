@@ -11,13 +11,17 @@ export const Card = ({ children, className, ...props }) => (
 export const Button = ({ children, className, variant = 'primary', ...props }) => {
   const baseStyle = "btn";
   const variants = {
-    primary: "bg-white text-black",
-    secondary: "bg-[#1e1e1e] text-white",
-    danger: "bg-[#ff3b30] text-white",
+    primary: "bg-[#ffffff] text-[#000000]",
+    secondary: "bg-transparent border border-[#ffffff33] text-[#ffffff] hover:bg-[#ffffff0d]",
+    danger: "bg-[#ff4b4b] text-[#ffffff]",
+    ghost: "bg-transparent text-[var(--text-secondary)]",
   };
   
   return (
-    <button className={clsx(baseStyle, className)} style={variant !== 'primary' ? { background: 'var(--bg-card-elevated)', color: 'var(--text-primary)' } : {}} {...props}>
+    <button 
+      {...props}
+      className={clsx(baseStyle, variants[variant], className)}
+    >
       {children}
     </button>
   );
@@ -132,13 +136,15 @@ export const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, conf
             onClick={onCancel}
             style={{
               flex: 1,
-              padding: '12px',
-              borderRadius: '12px',
-              border: 'none',
-              background: 'rgba(255, 255, 255, 0.1)',
+              padding: '14px',
+              borderRadius: '14px',
+              border: '1px solid var(--border-color)',
+              background: 'transparent',
               color: 'var(--text-primary)',
-              fontWeight: '600',
-              cursor: 'pointer'
+              fontWeight: '700',
+              fontSize: '14px',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
             }}
           >
             {cancelText}
@@ -147,13 +153,16 @@ export const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, conf
             onClick={onConfirm}
             style={{
               flex: 1,
-              padding: '12px',
-              borderRadius: '12px',
+              padding: '14px',
+              borderRadius: '14px',
               border: 'none',
               background: '#ff4b4b',
               color: '#ffffff',
-              fontWeight: '600',
-              cursor: 'pointer'
+              fontWeight: '700',
+              fontSize: '14px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 12px rgba(255, 75, 75, 0.2)'
             }}
           >
             {confirmText}

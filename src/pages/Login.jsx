@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext.jsx';
+import { FcGoogle } from 'react-icons/fc';
 
 export const Login = () => {
   const { login } = useAppContext();
@@ -29,24 +30,38 @@ export const Login = () => {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '24px',
-      background: 'var(--bg-main)'
+      background: 'radial-gradient(circle at top right, #1a1a1a, #000000)',
+      animation: 'fadeIn 0.8s ease'
     }}>
-      <div style={{
-        background: 'var(--bg-card)',
-        padding: '32px 24px',
-        borderRadius: '24px',
-        width: '100%',
-        maxWidth: '400px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '8px' }}>Trecker.</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Let's personalize your experience</p>
+      <div 
+        className="animate-slide-up"
+        style={{
+          background: 'rgba(28, 28, 30, 0.6)',
+          backdropFilter: 'blur(30px)',
+          WebkitBackdropFilter: 'blur(30px)',
+          padding: '40px 32px',
+          borderRadius: '32px',
+          width: '100%',
+          maxWidth: '400px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+        }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <div style={{ 
+            width: '64px', height: '64px', background: '#fff', borderRadius: '18px', 
+            margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 10px 20px rgba(255,255,255,0.1)'
+          }}>
+            <span style={{ fontSize: '32px', fontWeight: '900', color: '#000' }}>T.</span>
+          </div>
+          <h1 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '8px', letterSpacing: '-1px' }}>Trecker.</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '15px', fontWeight: '500' }}>Smart expense tracking starts here</p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>
               First Name
             </label>
             <input 
@@ -56,41 +71,43 @@ export const Login = () => {
                 setFirstName(e.target.value);
                 if (error) setError('');
               }}
-              placeholder="e.g. Jeel"
+              placeholder="Jeel"
               style={{
                 width: '100%',
-                padding: '16px',
-                borderRadius: '12px',
-                border: error ? '1px solid #ff4b4b' : '1px solid var(--border-color)',
-                background: 'var(--bg-main)',
+                padding: '18px',
+                borderRadius: '16px',
+                border: error ? '2px solid #ff4b4b' : '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(255, 255, 255, 0.03)',
                 color: 'var(--text-primary)',
                 fontSize: '16px',
+                fontWeight: '600',
                 outline: 'none',
-                transition: 'border-color 0.2s'
+                transition: 'all 0.3s'
               }}
             />
-            {error && <span style={{ color: '#ff4b4b', fontSize: '12px', marginTop: '6px', display: 'block' }}>{error}</span>}
+            {error && <span style={{ color: '#ff4b4b', fontSize: '12px', marginTop: '8px', display: 'block', fontWeight: '600' }}>{error}</span>}
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Last Name <span style={{ color: 'var(--text-tertiary)', fontWeight: '400', textTransform: 'none' }}>(Optional)</span>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              Last Name <span style={{ opacity: 0.5, fontWeight: '400' }}> (Optional)</span>
             </label>
             <input 
               type="text" 
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              placeholder="e.g. Thumar"
+              placeholder="Thumar"
               style={{
                 width: '100%',
-                padding: '16px',
-                borderRadius: '12px',
-                border: '1px solid var(--border-color)',
-                background: 'var(--bg-main)',
+                padding: '18px',
+                borderRadius: '16px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(255, 255, 255, 0.03)',
                 color: 'var(--text-primary)',
                 fontSize: '16px',
+                fontWeight: '600',
                 outline: 'none',
-                transition: 'border-color 0.2s'
+                transition: 'all 0.3s'
               }}
             />
           </div>
@@ -99,22 +116,54 @@ export const Login = () => {
             type="submit"
             style={{
               width: '100%',
-              padding: '16px',
-              marginTop: '12px',
-              borderRadius: '12px',
-              background: 'var(--text-primary)',
-              color: 'var(--bg-main)',
-              fontSize: '16px',
-              fontWeight: '600',
+              padding: '18px',
+              marginTop: '10px',
+              borderRadius: '18px',
+              background: '#ffffff',
+              color: '#000000',
+              fontSize: '17px',
+              fontWeight: '800',
               border: 'none',
               cursor: 'pointer',
-              transition: 'opacity 0.2s'
+              transition: 'all 0.3s',
+              boxShadow: '0 10px 20px rgba(255,255,255,0.1)'
             }}
-            onMouseDown={(e) => e.currentTarget.style.opacity = '0.8'}
-            onMouseUp={(e) => e.currentTarget.style.opacity = '1'}
-            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
           >
             Get Started
+          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '8px 0' }}>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: '600' }}>OR</span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+          </div>
+
+          <button 
+            type="button"
+            onClick={login}
+            style={{
+              width: '100%',
+              padding: '16px',
+              borderRadius: '18px',
+              background: 'rgba(255,255,255,0.05)',
+              color: '#ffffff',
+              fontSize: '16px',
+              fontWeight: '700',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+          >
+            <FcGoogle size={24} />
+            Sign in with Google
           </button>
         </form>
       </div>

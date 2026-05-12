@@ -9,10 +9,12 @@ import { Reports } from './pages/Reports.jsx';
 import { Profile } from './pages/Profile.jsx';
 import { ProfileInfo } from './pages/ProfileInfo.jsx';
 import { AddTransaction } from './pages/AddTransaction.jsx';
+import { TransactionDetail } from './pages/TransactionDetail.jsx';
 import { Friends } from './pages/Friends.jsx';
 import { FriendDetail } from './pages/FriendDetail.jsx';
 import { AddLedger } from './pages/AddLedger.jsx';
 import { Login } from './pages/Login.jsx';
+import { AppSettings } from './pages/AppSettings.jsx';
 import { useAppContext } from './context/AppContext.jsx';
 
 const AuthWrapper = () => {
@@ -38,8 +40,10 @@ const AuthWrapper = () => {
           <Route path="settings" element={<Profile />} />
         </Route>
         <Route path="/add" element={<AddTransaction />} />
+        <Route path="/transaction/:id" element={<TransactionDetail />} />
         <Route path="/add-ledger" element={<AddLedger />} />
         <Route path="/profile-info" element={<ProfileInfo />} />
+        <Route path="/app-settings" element={<AppSettings />} />
       </Routes>
     </BrowserRouter>
   );
