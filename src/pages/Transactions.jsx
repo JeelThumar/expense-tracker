@@ -1,232 +1,333 @@
-import React, { useState } from 'react';
-import { format } from 'date-fns';
+import React, { useState, useMemo } from 'react';
+import { format, isValid } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { IoChevronDown, IoCloudDownloadOutline } from 'react-icons/io5';
 import { useAppContext } from '../context/AppContext.jsx';
-import { Card, Button, ConfirmModal } from '../components/ui.jsx';
-import { Trash2 } from 'lucide-react';
+import { Card } from '../components/ui.jsx';
 import { DateFilter } from '../components/DateFilter.jsx';
 
 export const Transactions = () => {
-  const { transactions, deleteTransaction } = useAppContext();
+  const { transactions } = useAppContext();
   const navigate = useNavigate();
-  const [filter, setFilter] = useState('all');
-  const [withWhomFilter, setWithWhomFilter] = useState('');
+  const [filter, setFilter] = useState('all'); // all, income, expense
   const [dateFilter, setDateFilter] = useState({ type: 'all' });
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null);
+  const [selectedPerson, setSelectedPerson] = useState('Everyone');
+  const [isPersonDropdownOpen, setIsPersonDropdownOpen] = useState(false);
 
-  // Compute unique people and their aggregated spend
-  const peopleStats = transactions.reduce((acc, txn) => {
-    if (!txn.withWhom) return acc;
-    // Split by comma and trim whitespace
-    const names = txn.withWhom.split(',').map(n => n.trim()).filter(Boolean);
-    if (names.length === 0) return acc;
-    
-    // Split the amount among the people (only for expenses for this specific logic, or all?)
-    // User requested: "how many rupees spend with that person" -> Usually applies to expenses.
-    // If it's an income, maybe it's positive? Let's just track absolute amount or only expenses.
-    // Let's track expenses.
-    const splitAmount = txn.type === 'expense' ? txn.amount / names.length : 0;
-    
-    names.forEach(name => {
-      if (!acc[name]) acc[name] = 0;
-      acc[name] += splitAmount;
-    });
-    return acc;
-  }, {});
+  // Compute unique people
+  const uniquePeople = useMemo(() => {
+    return Array.from(new Set(
+      transactions.reduce((acc, txn) => {
+        if (txn.withWhom) {
+          txn.withWhom.split(',').forEach(n => acc.push(n.trim()));
+        }
+        return acc;
+      }, [])
+    )).sort();
+  }, [transactions]);
 
-  const uniquePeople = Object.keys(peopleStats).sort();
-
-  // 1. First, get transactions filtered ONLY by date
-  const dateFilteredTransactions = transactions.filter(txn => {
-    if (dateFilter && dateFilter.type !== 'all') {
+  // 1. Filter by Date and Person
+  const dateAndPersonFiltered = useMemo(() => {
+    return transactions.filter(txn => {
       const txnDate = new Date(txn.date);
-      if (dateFilter.type === 'month') {
-        if (format(txnDate, 'yyyy-MM') !== dateFilter.value) return false;
-      } else if (dateFilter.type === 'year') {
-        if (format(txnDate, 'yyyy') !== dateFilter.value) return false;
-      } else if (dateFilter.type === 'range') {
-        const start = new Date(dateFilter.start);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(dateFilter.end);
-        end.setHours(23, 59, 59, 999);
-        if (txnDate < start || txnDate > end) return false;
+      if (!isValid(txnDate)) return false;
+
+      // Date filter
+      let dateMatch = true;
+      if (dateFilter && dateFilter.type !== 'all') {
+        if (dateFilter.type === 'month') {
+          dateMatch = format(txnDate, 'yyyy-MM') === dateFilter.value;
+        } else if (dateFilter.type === 'year') {
+          dateMatch = format(txnDate, 'yyyy') === dateFilter.value;
+        } else if (dateFilter.type === 'range') {
+          const start = new Date(dateFilter.start); start.setHours(0,0,0,0);
+          const end = new Date(dateFilter.end); end.setHours(23,59,59,999);
+          dateMatch = txnDate >= start && txnDate <= end;
+        }
       }
-    }
-    return true;
-  });
 
-  // 2. Then, filter further for the list view (Type & Person)
-  const filteredTransactions = dateFilteredTransactions.filter(txn => {
-    if (filter !== 'all' && txn.type !== filter) return false;
-    
-    if (withWhomFilter) {
-      if (!txn.withWhom) return false;
-      const names = txn.withWhom.split(',').map(n => n.trim());
-      if (!names.includes(withWhomFilter)) return false;
-    }
-    return true;
-  });
+      if (!dateMatch) return false;
 
-  // Calculate KPIs purely from dateFilteredTransactions so they don't change when clicking "Expenses" chip
-  const totalIncome = dateFilteredTransactions.reduce((acc, curr) => 
+      // Person filter
+      if (selectedPerson !== 'Everyone') {
+        if (!txn.withWhom) return false;
+        const names = txn.withWhom.split(',').map(n => n.trim());
+        if (!names.includes(selectedPerson)) return false;
+      }
+
+      return true;
+    });
+  }, [transactions, dateFilter, selectedPerson]);
+
+  // 2. Filter by Type (Income/Expense/All)
+  const finalFilteredTransactions = useMemo(() => {
+    if (filter === 'all') return dateAndPersonFiltered;
+    return dateAndPersonFiltered.filter(txn => txn.type === filter);
+  }, [dateAndPersonFiltered, filter]);
+
+  // Aggregate totals for the dropdown
+  const totalIncome = useMemo(() => dateAndPersonFiltered.reduce((acc, curr) => 
     curr.type === 'income' ? acc + curr.amount : acc, 0
-  );
+  ), [dateAndPersonFiltered]);
   
-  const totalExpense = dateFilteredTransactions.reduce((acc, curr) => 
+  const totalExpense = useMemo(() => dateAndPersonFiltered.reduce((acc, curr) => 
     curr.type === 'expense' ? acc + curr.amount : acc, 0
-  );
-
-  const getFilterLabel = () => {
-    if (!dateFilter || dateFilter.type === 'all') return 'All Time';
-    if (dateFilter.type === 'month') {
-      const [year, month] = dateFilter.value.split('-');
-      return format(new Date(year, month - 1), 'MMM yyyy');
-    }
-    if (dateFilter.type === 'year') {
-      return dateFilter.value;
-    }
-    if (dateFilter.type === 'range') {
-      return `${format(new Date(dateFilter.start), 'MMM dd')} - ${format(new Date(dateFilter.end), 'MMM dd')}`;
-    }
-    return '';
-  };
+  ), [dateAndPersonFiltered]);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-        <div style={{ flex: 1, background: 'var(--bg-card)', padding: '12px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
-          <span className="text-secondary" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Income</span>
-          <span style={{ color: 'var(--accent-success)', fontSize: '16px', fontWeight: '600' }}>₹{totalIncome.toFixed(0)}</span>
-          <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'var(--bg-main)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: '500' }}>
-            {getFilterLabel()}
-          </div>
-        </div>
-        <div style={{ flex: 1, background: 'var(--bg-card)', padding: '12px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
-          <span className="text-secondary" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Expense</span>
-          <span style={{ color: 'var(--accent-danger)', fontSize: '16px', fontWeight: '600' }}>₹{totalExpense.toFixed(0)}</span>
-          <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'var(--bg-main)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: '500' }}>
-            {getFilterLabel()}
-          </div>
-        </div>
+    <div style={{ padding: '20px 20px 24px', animation: 'fadeIn 0.6s ease' }}>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '32px' }}>
+        <Card style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Income</div>
+          <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--accent-success)' }}>₹{totalIncome.toLocaleString()}</div>
+        </Card>
+        <Card style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Expense</div>
+          <div style={{ fontSize: '22px', fontWeight: '800' }}>₹{totalExpense.toLocaleString()}</div>
+        </Card>
       </div>
-      
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <Button 
-          variant={filter === 'all' ? 'primary' : 'secondary'} 
-          style={{ padding: '8px 16px', fontSize: '14px', borderRadius: '20px', whiteSpace: 'nowrap', opacity: filter === 'all' ? 1 : 0.5, border: filter === 'all' ? '1px solid var(--text-primary)' : '1px solid transparent' }}
-          onClick={() => setFilter('all')}
-        >
-          All
-        </Button>
-        <Button 
-          variant={filter === 'expense' ? 'primary' : 'secondary'} 
-          style={{ padding: '8px 16px', fontSize: '14px', borderRadius: '20px', whiteSpace: 'nowrap', opacity: filter === 'expense' ? 1 : 0.5, border: filter === 'expense' ? '1px solid var(--text-primary)' : '1px solid transparent' }}
-          onClick={() => setFilter('expense')}
-        >
-          Expenses
-        </Button>
-        <Button 
-          variant={filter === 'income' ? 'primary' : 'secondary'} 
-          style={{ padding: '8px 16px', fontSize: '14px', borderRadius: '20px', whiteSpace: 'nowrap', opacity: filter === 'income' ? 1 : 0.5, border: filter === 'income' ? '1px solid var(--text-primary)' : '1px solid transparent' }}
-          onClick={() => setFilter('income')}
-        >
-          Income
-        </Button>
-        {/* Custom With Whom Chip Dropdown - Now integrated in the flex-wrap row */}
-        {uniquePeople.length > 0 && (
-          <div style={{ position: 'relative' }}>
-            <Button 
-              variant={withWhomFilter ? 'primary' : 'secondary'} 
-              style={{ padding: '8px 16px', fontSize: '14px', borderRadius: '20px', whiteSpace: 'nowrap', opacity: withWhomFilter ? 1 : 0.5, border: withWhomFilter ? '1px solid var(--text-primary)' : '1px solid transparent', display: 'flex', alignItems: 'center', gap: '6px' }}
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            >
-              {withWhomFilter ? `With: ${withWhomFilter}` : 'Everyone ▾'}
-            </Button>
-            
-            {isDropdownOpen && (
-              <div style={{ 
-                position: 'absolute', top: '100%', left: 0, zIndex: 10,
-                background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px',
-                marginTop: '8px', minWidth: '200px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
-              }}>
-                <div 
-                  onClick={() => { setWithWhomFilter(''); setIsDropdownOpen(false); }}
-                  style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', fontWeight: !withWhomFilter ? '600' : '400' }}
+
+      {/* Filter Toolbar: Harden with flex-nowrap and overflow-hidden */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        gap: '8px', 
+        marginBottom: '24px', 
+        width: '100%',
+        flexWrap: 'nowrap'
+      }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 1 }}>
+          <div style={{ 
+            display: 'flex', 
+            background: 'var(--bg-card)', 
+            padding: '4px', 
+            borderRadius: '14px', 
+            border: '1px solid var(--border-color)',
+            flexShrink: 1,
+            overflow: 'hidden'
+          }}>
+            {['all', 'exp', 'inc'].map((label, idx) => {
+              const types = ['all', 'expense', 'income'];
+              const type = types[idx];
+              return (
+                <button 
+                  key={type}
+                  onClick={() => setFilter(type)}
+                  style={{ 
+                    background: filter === type ? 'var(--text-primary)' : 'transparent',
+                    color: filter === type ? 'var(--bg-main)' : 'var(--text-secondary)',
+                    border: 'none',
+                    padding: '6px 10px',
+                    borderRadius: '10px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap'
+                  }}
                 >
-                  Everyone
-                </div>
-                {uniquePeople.map(person => (
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button 
+              onClick={() => setIsPersonDropdownOpen(!isPersonDropdownOpen)}
+              style={{
+                background: selectedPerson !== 'Everyone' ? 'var(--text-primary)' : 'var(--bg-card-elevated)',
+                color: selectedPerson !== 'Everyone' ? 'var(--bg-main)' : 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+                padding: '8px 10px',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                fontWeight: '700',
+                transition: 'all 0.2s ease',
+                fontSize: '12px',
+                maxWidth: '100px'
+              }}
+            >
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedPerson}</span>
+              <IoChevronDown size={12} style={{ opacity: 0.7, flexShrink: 0 }} />
+            </button>
+
+            {isPersonDropdownOpen && (
+              <>
+                <div 
+                  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }} 
+                  onClick={() => setIsPersonDropdownOpen(false)} 
+                />
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  left: 0,
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '16px',
+                  padding: '8px',
+                  minWidth: '200px',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                  zIndex: 999,
+                  backdropFilter: 'blur(10px)',
+                  animation: 'slideDown 0.2s ease',
+                  maxHeight: '300px',
+                  overflowY: 'auto'
+                }}>
                   <div 
-                    key={person} 
-                    onClick={() => { setWithWhomFilter(person); setIsDropdownOpen(false); }}
-                    style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', fontWeight: withWhomFilter === person ? '600' : '400', display: 'flex', justifyContent: 'space-between' }}
+                    onClick={() => { setSelectedPerson('Everyone'); setIsPersonDropdownOpen(false); }}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '10px',
+                      background: selectedPerson === 'Everyone' ? 'rgba(255,255,255,0.05)' : 'transparent',
+                      color: selectedPerson === 'Everyone' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
                   >
-                    <span>{person}</span>
-                    {peopleStats[person] > 0 && (
-                      <span className="text-secondary" style={{ fontSize: '12px' }}>₹{peopleStats[person].toFixed(0)}</span>
-                    )}
+                    <span>Everyone</span>
+                    <span style={{ fontSize: '11px', opacity: 0.7 }}>₹{(totalIncome - totalExpense).toLocaleString()}</span>
+                  </div>
+                  {uniquePeople.map(person => {
+                    const personNet = transactions
+                      .filter(t => {
+                        let dateMatch = true;
+                        if (dateFilter && dateFilter.type !== 'all') {
+                          const txnDate = new Date(t.date);
+                          if (!isValid(txnDate)) return false;
+                          if (dateFilter.type === 'month') dateMatch = format(txnDate, 'yyyy-MM') === dateFilter.value;
+                          else if (dateFilter.type === 'year') dateMatch = format(txnDate, 'yyyy') === dateFilter.value;
+                          else if (dateFilter.type === 'range') {
+                            const start = new Date(dateFilter.start); start.setHours(0,0,0,0);
+                            const end = new Date(dateFilter.end); end.setHours(23,59,59,999);
+                            dateMatch = txnDate >= start && txnDate <= end;
+                          }
+                        }
+                        return dateMatch && (t.withWhom?.split(',') || []).map(n => n.trim()).includes(person);
+                      })
+                      .reduce((acc, curr) => curr.type === 'income' ? acc + curr.amount : acc - curr.amount, 0);
+
+                    return (
+                      <div 
+                        key={person}
+                        onClick={() => { setSelectedPerson(person); setIsPersonDropdownOpen(false); }}
+                        style={{
+                          padding: '12px',
+                          borderRadius: '10px',
+                          background: selectedPerson === person ? 'rgba(255,255,255,0.05)' : 'transparent',
+                          color: selectedPerson === person ? 'var(--text-primary)' : 'var(--text-secondary)',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <span>{person}</span>
+                        <span style={{ fontSize: '11px', opacity: 0.7 }}>₹{personNet.toLocaleString()}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <DateFilter filter={dateFilter} setFilter={setDateFilter} />
+      </div>
+
+      {/* Transactions List */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '100px' }}>
+        {finalFilteredTransactions.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-tertiary)' }}>
+            No transactions found.
+          </div>
+        ) : (
+          Object.entries(
+            finalFilteredTransactions.reduce((groups, txn) => {
+              const txnDate = new Date(txn.date);
+              const date = format(txnDate, 'yyyy-MM-dd');
+              if (!groups[date]) groups[date] = [];
+              groups[date].push(txn);
+              return groups;
+            }, {})
+          )
+          .sort((a, b) => new Date(b[0]) - new Date(a[0]))
+          .map(([date, txns]) => (
+            <div key={date} className="animate-slide-up">
+              <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px', paddingLeft: '4px' }}>
+                {format(new Date(date), 'EEEE, MMM dd')}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {txns.map(txn => (
+                  <div 
+                    key={txn.id} 
+                    onClick={() => navigate(`/transaction/${txn.id}`)}
+                    style={{ 
+                      background: 'var(--bg-card)', borderRadius: '18px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', border: '1px solid var(--border-color)', transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+                        {txn.category?.toLowerCase().includes('fuel') ? '⛽' : txn.category?.toLowerCase().includes('food') ? '🍔' : '📄'}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: '700', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {txn.category}
+                          {txn.isImported && (
+                            <IoCloudDownloadOutline size={12} color="var(--text-tertiary)" title="Imported" />
+                          )}
+                        </div>
+                        <div style={{ 
+                          fontSize: '11px', 
+                          color: 'var(--text-secondary)', 
+                          marginTop: '2px',
+                          maxWidth: '180px',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {txn.note || (txn.type === 'income' ? 'Income' : 'Expense')}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontWeight: '800', fontSize: '16px', color: txn.type === 'income' ? 'var(--accent-success)' : 'var(--text-primary)' }}>
+                        {txn.type === 'income' ? '+' : '-'}₹{txn.amount.toLocaleString()}
+                      </div>
+                      {txn.withWhom && (
+                        <div style={{ 
+                          fontSize: '10px', 
+                          color: 'var(--text-secondary)', 
+                          marginTop: '2px',
+                          maxWidth: '100px',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {txn.withWhom}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        )}
-        
-        <div style={{ marginLeft: 'auto' }}>
-          <DateFilter filter={dateFilter} setFilter={setDateFilter} />
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {filteredTransactions.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <p className="text-secondary" style={{ fontSize: '16px' }}>No transactions found matching your filters.</p>
-            <p className="text-tertiary" style={{ fontSize: '14px', marginTop: '8px' }}>Enjoy the quiet!</p>
-          </div>
-        ) : (
-          filteredTransactions.map(txn => (
-            <Card key={txn.id} style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: '600', fontSize: '16px', marginBottom: '4px' }}>{txn.category}</div>
-                <div className="text-secondary" style={{ fontSize: '12px' }}>{format(new Date(txn.date), 'MMM dd, yyyy • hh:mm a')}</div>
-                {txn.withWhom && <div className="text-secondary" style={{ fontSize: '12px', marginTop: '2px', fontWeight: '500' }}>With: {txn.withWhom}</div>}
-                {txn.note && <div className="text-tertiary" style={{ fontSize: '12px', marginTop: '4px' }}>{txn.note}</div>}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ 
-                  fontWeight: '700', 
-                  fontSize: '18px', 
-                  color: txn.type === 'income' ? 'var(--accent-success)' : 'var(--text-primary)',
-                  textAlign: 'right'
-                }}>
-                  {txn.type === 'income' ? '+' : '-'}₹{txn.amount.toFixed(2)}
-                </div>
-                <button 
-                  onClick={() => setItemToDelete(txn)}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '4px' }}
-                >
-                  <Trash2 size={20} />
-                </button>
-              </div>
-            </Card>
+            </div>
           ))
         )}
       </div>
-
-      <ConfirmModal 
-        isOpen={!!itemToDelete}
-        title="Delete Transaction?"
-        message={`Are you sure you want to delete this ${itemToDelete?.type === 'expense' ? 'expense' : 'income'} of ₹${itemToDelete?.amount}?`}
-        confirmText="Delete"
-        cancelText="Cancel"
-        onConfirm={() => {
-          if (itemToDelete) deleteTransaction(itemToDelete.id);
-          setItemToDelete(null);
-        }}
-        onCancel={() => setItemToDelete(null)}
-      />
-
     </div>
   );
 };

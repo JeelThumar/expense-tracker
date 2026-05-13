@@ -30,52 +30,71 @@ export const FriendDetail = () => {
   }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
+    <div style={{ padding: '24px 20px', animation: 'fadeIn 0.6s ease' }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '32px' }}>
         <button 
           onClick={() => navigate(-1)}
-          style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '8px', marginRight: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          style={{ 
+            background: 'var(--bg-card)', border: '1px solid var(--border-color)', 
+            color: 'var(--text-primary)', cursor: 'pointer', width: '44px', height: '44px', 
+            borderRadius: '14px', marginRight: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' 
+          }}
         >
-          <IoChevronBack size={24} />
+          <IoChevronBack size={20} />
         </button>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: '600' }}>{decodedName}</h2>
-          <div style={{ fontSize: '14px', color: statusColor, fontWeight: '500' }}>{statusText}</div>
+          <h2 style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px' }}>{decodedName}</h2>
+          <div style={{ fontSize: '13px', color: statusColor, fontWeight: '700', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{statusText}</div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '100px' }}>
         {history.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <p className="text-secondary" style={{ fontSize: '14px' }}>No history found.</p>
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-tertiary)' }}>
+            No history found.
           </div>
         ) : (
-          history.map(txn => (
-            <Card key={txn.id} style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          history.slice().reverse().map((txn, index) => (
+            <div 
+              key={txn.id} 
+              className="animate-slide-up"
+              style={{ 
+                animationDelay: `${index * 0.05}s`,
+                background: 'var(--bg-card)', 
+                padding: '16px', 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                borderRadius: '18px',
+                border: '1px solid var(--border-color)'
+              }}
+            >
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: '600', fontSize: '16px', marginBottom: '4px' }}>
+                <div style={{ fontWeight: '700', fontSize: '15px', marginBottom: '2px' }}>
                   {txn.type === 'lent' ? 'You gave' : 'They gave'}
                 </div>
-                <div className="text-secondary" style={{ fontSize: '12px' }}>{format(new Date(txn.date), 'MMM dd, yyyy • hh:mm a')}</div>
-                {txn.note && <div className="text-tertiary" style={{ fontSize: '12px', marginTop: '4px' }}>{txn.note}</div>}
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  {format(new Date(txn.date), 'MMM dd, yyyy')}
+                </div>
+                {txn.note && <div style={{ fontSize: '12px', marginTop: '6px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>"{txn.note}"</div>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{ 
-                  fontWeight: '700', 
+                  fontWeight: '800', 
                   fontSize: '18px', 
                   color: txn.type === 'lent' ? 'var(--accent-success)' : 'var(--accent-danger)',
                   textAlign: 'right'
                 }}>
-                  {txn.type === 'lent' ? '+' : '-'}₹{txn.amount.toFixed(2)}
+                  {txn.type === 'lent' ? '+' : '-'}₹{txn.amount.toLocaleString()}
                 </div>
                 <button 
                   onClick={() => setItemToDelete(txn)}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '4px' }}
+                  style={{ background: 'rgba(255, 75, 75, 0.05)', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <IoTrashOutline size={20} />
+                  <IoTrashOutline size={16} />
                 </button>
               </div>
-            </Card>
+            </div>
           ))
         )}
       </div>

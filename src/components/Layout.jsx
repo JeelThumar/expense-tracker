@@ -32,7 +32,7 @@ export const Layout = () => {
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        padding: '20px 24px 10px',
+        padding: '20px 24px 16px',
         position: 'sticky',
         top: 0,
         background: 'rgba(20, 20, 20, 0.8)',

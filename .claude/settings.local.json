@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:www.linkedin.com)",
+      "WebFetch(domain:feedback.splitwise.com)",
+      "WebFetch(domain:terbium.io)"
+    ]
+  }
+}

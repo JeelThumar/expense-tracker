@@ -2,11 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { IoCloseOutline, IoChevronDown } from 'react-icons/io5';
+import { X } from 'lucide-react';
 import { useAppContext } from '../context/AppContext.jsx';
 
 export const AddTransaction = () => {
   const navigate = useNavigate();
-  const { transactions, addTransaction } = useAppContext();
+  const { transactions, addTransaction, settings } = useAppContext();
   
   const [newTxn, setNewTxn] = useState({ 
     type: 'expense', 
@@ -14,32 +15,60 @@ export const AddTransaction = () => {
     category: '', 
     note: '', 
     withWhom: '',
-    date: format(new Date(), 'yyyy-MM-dd') // Default to today
+    includeMe: true,
+    date: format(new Date(), 'yyyy-MM-dd'), // Default to today
+    isVehicle: false,
+    odometer: '',
+    litres: '',
+    pricePerLitre: ''
   });
+  
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [withWhomInput, setWithWhomInput] = useState('');
 
+  // Get unique people
   const uniquePeople = Array.from(new Set(
     transactions.reduce((acc, txn) => {
       if (txn.withWhom) {
         txn.withWhom.split(',').forEach(n => acc.push(n.trim()));
       }
-      return acc;
-    }, []).filter(Boolean)
+        return acc;
+      }, []).filter(Boolean)
   )).sort();
+
+  // Get top 5 categories based on frequency
+  const topCategories = useMemo(() => {
+    const counts = {};
+    transactions.forEach(t => {
+      if (t.type === newTxn.type && t.category) {
+        counts[t.category] = (counts[t.category] || 0) + 1;
+      }
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(entry => entry[0]);
+  }, [transactions, newTxn.type]);
+  
+  const isVehicleCategory = (cat) => {
+    if (!cat) return false;
+    const c = cat.toLowerCase();
+    return c.includes('fuel') || c.includes('service') || c.includes('bike') || c.includes('vehicle') || c.includes('petrol') || c.includes('diesel');
+  };
+
+  const showVehicleFields = newTxn.type === 'expense' && isVehicleCategory(newTxn.category);
 
   // Simple math parser
   const parsedAmount = useMemo(() => {
     try {
       if (!newTxn.amount) return null;
-      // Only allow numbers and basic operators to prevent eval issues
       const sanitized = newTxn.amount.replace(/[^0-9+\-*/.]/g, '');
-      if (sanitized !== newTxn.amount) return null; // Invalid chars
-      if (/[+\-*/]$/.test(sanitized)) return null; // Ends with operator
+      if (sanitized !== newTxn.amount) return null;
+      if (/[+\-*/]$/.test(sanitized)) return null;
       
       const result = new Function('return ' + sanitized)();
       if (isNaN(result) || !isFinite(result)) return null;
       
-      // Return if the calculated result is different from the raw string 
       if (sanitized !== result.toString()) {
         return { equation: sanitized, result };
       }
@@ -71,7 +100,12 @@ export const AddTransaction = () => {
       category: newTxn.category,
       note: newTxn.note,
       withWhom: newTxn.withWhom,
-      date: newTxn.date
+      includeMe: newTxn.includeMe,
+      date: newTxn.date,
+      isVehicle: newTxn.isVehicle,
+      odometer: newTxn.odometer ? parseFloat(newTxn.odometer) : null,
+      litres: newTxn.litres ? parseFloat(newTxn.litres) : null,
+      pricePerLitre: newTxn.pricePerLitre ? parseFloat(newTxn.pricePerLitre) : settings.defaultFuelPrice
     });
     
     navigate(-1);
@@ -86,6 +120,22 @@ export const AddTransaction = () => {
         note: prev.note ? `${prev.note} ${addition}` : addition
       }));
     }
+  };
+
+  // With Whom chip management
+  const selectedPeople = newTxn.withWhom.split(',').map(n => n.trim()).filter(Boolean);
+
+  const addPerson = (name) => {
+    if (!name.trim()) return;
+    const newPeople = [...selectedPeople, name.trim()];
+    setNewTxn(prev => ({ ...prev, withWhom: newPeople.join(', ') }));
+    setWithWhomInput('');
+    setIsDropdownOpen(false);
+  };
+
+  const removePerson = (name) => {
+    const newPeople = selectedPeople.filter(p => p !== name);
+    setNewTxn(prev => ({ ...prev, withWhom: newPeople.join(', ') }));
   };
 
   return (
@@ -163,28 +213,103 @@ export const AddTransaction = () => {
 
         {/* Other Fields */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, position: 'relative' }}>
-          <input
-            type="text"
-            placeholder="Category (e.g. Food, Rent)"
-            value={newTxn.category}
-            onChange={(e) => setNewTxn(prev => ({ ...prev, category: e.target.value }))}
-            style={inputStyle}
-          />
-
-          <div style={{ position: 'relative' }}>
+          
+          <div>
             <input
               type="text"
-              placeholder="With Whom (Optional)"
-              value={newTxn.withWhom}
-              onChange={(e) => setNewTxn(prev => ({ ...prev, withWhom: e.target.value }))}
-              onFocus={() => setIsDropdownOpen(true)}
-              style={{ ...inputStyle, paddingRight: '40px' }}
+              placeholder="Category (e.g. Food, Rent)"
+              value={newTxn.category}
+              onChange={(e) => setNewTxn(prev => ({ ...prev, category: e.target.value }))}
+              style={{ ...inputStyle, marginBottom: '8px' }}
             />
+            {topCategories.length > 0 && (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '0 4px' }}>
+                {topCategories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setNewTxn(prev => ({ ...prev, category: cat }))}
+                    style={{
+                      background: 'var(--bg-card-elevated)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)',
+                      padding: '6px 12px',
+                      borderRadius: '16px',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ position: 'relative' }}>
+            <div
+              style={{
+                ...inputStyle,
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '8px',
+                padding: selectedPeople.length > 0 ? '12px 40px 12px 12px' : '16px 40px 16px 16px',
+                alignItems: 'center',
+                minHeight: '54px'
+              }}
+              onClick={() => setIsDropdownOpen(true)}
+            >
+              {selectedPeople.map(person => (
+                <div 
+                  key={person}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'var(--bg-card-elevated)',
+                    padding: '4px 8px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    color: 'var(--text-primary)'
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {person}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); removePerson(person); }}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', cursor: 'pointer', padding: 0 }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              <input
+                type="text"
+                placeholder={selectedPeople.length === 0 ? "With Whom (Optional)" : ""}
+                value={withWhomInput}
+                onChange={(e) => {
+                  setWithWhomInput(e.target.value);
+                  setIsDropdownOpen(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addPerson(withWhomInput);
+                  } else if (e.key === 'Backspace' && withWhomInput === '' && selectedPeople.length > 0) {
+                    removePerson(selectedPeople[selectedPeople.length - 1]);
+                  }
+                }}
+                style={{
+                  background: 'transparent', border: 'none', color: 'var(--text-primary)', 
+                  fontSize: '16px', outline: 'none', flex: 1, minWidth: '100px'
+                }}
+              />
+            </div>
+            
             <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)' }}>
               <IoChevronDown size={20} />
             </div>
             
-            {isDropdownOpen && uniquePeople.length > 0 && (
+            {isDropdownOpen && (uniquePeople.length > 0 || withWhomInput.trim().length > 0) && (
               <>
                 <div 
                   style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9 }} 
@@ -204,13 +329,28 @@ export const AddTransaction = () => {
                   boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
                   zIndex: 10
                 }}>
-                {uniquePeople.filter(p => p.toLowerCase().includes(newTxn.withWhom.toLowerCase())).map(p => (
+                {withWhomInput.trim() && !uniquePeople.includes(withWhomInput.trim()) && (
+                  <div
+                    onClick={() => addPerson(withWhomInput.trim())}
+                    style={{
+                      padding: '16px',
+                      borderBottom: '1px solid var(--border-color)',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      color: 'var(--accent-success)',
+                      fontWeight: '500'
+                    }}
+                  >
+                    Add "{withWhomInput.trim()}"
+                  </div>
+                )}
+                {uniquePeople
+                  .filter(p => !selectedPeople.includes(p)) // Exclude already selected
+                  .filter(p => p.toLowerCase().includes(withWhomInput.toLowerCase()))
+                  .map(p => (
                   <div
                     key={p}
-                    onClick={() => {
-                      setNewTxn(prev => ({ ...prev, withWhom: p }));
-                      setIsDropdownOpen(false);
-                    }}
+                    onClick={() => addPerson(p)}
                     style={{
                       padding: '16px',
                       borderBottom: '1px solid var(--border-color)',
@@ -226,22 +366,144 @@ export const AddTransaction = () => {
             </>
           )}
         </div>
+
+        {newTxn.withWhom && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Include me in the split</span>
+            <button 
+              onClick={() => setNewTxn(prev => ({ ...prev, includeMe: !prev.includeMe }))}
+              style={{
+                width: '44px', height: '24px', borderRadius: '12px', border: 'none',
+                background: newTxn.includeMe ? 'var(--accent-success)' : 'var(--bg-card-elevated)',
+                position: 'relative', cursor: 'pointer', transition: 'all 0.2s'
+              }}
+            >
+              <div style={{
+                width: '20px', height: '20px', borderRadius: '10px', background: '#fff',
+                position: 'absolute', top: '2px', left: newTxn.includeMe ? '22px' : '2px',
+                transition: 'all 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+              }} />
+            </button>
+          </div>
+        )}
           
           <input
             type="date"
             value={newTxn.date}
+            max={format(new Date(), 'yyyy-MM-dd')}
             onChange={(e) => setNewTxn(prev => ({ ...prev, date: e.target.value }))}
             onClick={(e) => e.target.showPicker && e.target.showPicker()}
             style={inputStyle}
           />
 
-          <input
-            type="text"
+          <textarea
             placeholder="Add a note (optional)"
             value={newTxn.note}
             onChange={(e) => setNewTxn(prev => ({ ...prev, note: e.target.value }))}
-            style={inputStyle}
+            rows={3}
+            style={{ 
+              ...inputStyle, 
+              height: 'auto', 
+              minHeight: '100px', 
+              resize: 'none', 
+              paddingTop: '16px',
+              lineHeight: '1.5'
+            }}
           />
+
+          {/* Vehicle Specific Fields */}
+          {showVehicleFields && (
+            <div style={{ 
+              marginTop: '8px', padding: '16px', borderRadius: '16px', background: 'rgba(255,255,255,0.03)', 
+              border: '1px dashed var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' 
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '15px', fontWeight: '600' }}>For my Bike (Mileage Tracking)</span>
+                <button 
+                  onClick={() => setNewTxn(prev => ({ ...prev, isVehicle: !prev.isVehicle }))}
+                  style={{
+                    width: '44px', height: '24px', borderRadius: '12px', border: 'none',
+                    background: newTxn.isVehicle ? 'var(--accent-success)' : 'var(--bg-card-elevated)',
+                    position: 'relative', cursor: 'pointer', transition: 'all 0.2s'
+                  }}
+                >
+                  <div style={{
+                    width: '20px', height: '20px', borderRadius: '10px', background: '#fff',
+                    position: 'absolute', top: '2px', left: newTxn.isVehicle ? '22px' : '2px',
+                    transition: 'all 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                  }} />
+                </button>
+              </div>
+
+              {newTxn.isVehicle && newTxn.category.toLowerCase().includes('fuel') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Odometer ({settings.distanceUnit})</label>
+                      <input
+                        type="number"
+                        placeholder={`e.g. 12400`}
+                        value={newTxn.odometer}
+                        onChange={(e) => setNewTxn(prev => ({ ...prev, odometer: e.target.value }))}
+                        style={{ ...inputStyle, padding: '12px' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>{settings.fuelUnit}s</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g. 5.5"
+                        value={newTxn.litres}
+                        onChange={(e) => {
+                          const l = e.target.value;
+                          setNewTxn(prev => {
+                            const newState = { ...prev, litres: l };
+                            // If price is empty, suggest using default price for amount
+                            if (!prev.amount && l && !prev.pricePerLitre) {
+                              // We don't auto-set amount to avoid confusion, but we could
+                            }
+                            return newState;
+                          });
+                        }}
+                        style={{ ...inputStyle, padding: '12px' }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Price per {settings.fuelUnit}</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder={`Default: ₹${settings.defaultFuelPrice}`}
+                        value={newTxn.pricePerLitre}
+                        onChange={(e) => setNewTxn(prev => ({ ...prev, pricePerLitre: e.target.value }))}
+                        style={{ ...inputStyle, padding: '12px' }}
+                      />
+                      {!newTxn.pricePerLitre && (
+                        <div style={{ fontSize: '10px', color: 'var(--accent-success)', marginTop: '4px', fontWeight: '600' }}>
+                          Using default: ₹{settings.defaultFuelPrice}
+                        </div>
+                      )}
+                    </div>
+                    {newTxn.litres && !newTxn.amount && (
+                      <button 
+                        onClick={() => {
+                          const price = newTxn.pricePerLitre ? parseFloat(newTxn.pricePerLitre) : settings.defaultFuelPrice;
+                          const total = (parseFloat(newTxn.litres) * price).toFixed(2);
+                          setNewTxn(prev => ({ ...prev, amount: total }));
+                        }}
+                        style={{ marginTop: '12px', background: 'rgba(52, 199, 89, 0.1)', color: 'var(--accent-success)', border: 'none', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', width: '100%' }}
+                      >
+                        Calculate Total: ₹{(parseFloat(newTxn.litres) * (newTxn.pricePerLitre ? parseFloat(newTxn.pricePerLitre) : settings.defaultFuelPrice)).toFixed(2)}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <button
