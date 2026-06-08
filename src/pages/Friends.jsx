@@ -4,30 +4,95 @@ import { useAppContext } from '../context/AppContext.jsx';
 import { Card } from '../components/ui.jsx';
 import { IoArrowForward, IoAdd } from 'react-icons/io5';
 
+import { normalizeName } from '../utils/names';
+
 export const Friends = () => {
-  const { ledger } = useAppContext();
+  const { ledger, transactions } = useAppContext();
   const navigate = useNavigate();
 
   const balances = useMemo(() => {
     const acc = {};
+    
+    // Initialize all names from ledger and transactions to ensure they show up in friends list
     ledger.forEach(txn => {
-      const name = txn.person;
+      if (txn.person) {
+        acc[normalizeName(txn.person)] = 0;
+      }
+    });
+    transactions.forEach(txn => {
+      if (txn.withWhom) {
+        txn.withWhom.split(',').forEach(n => {
+          const name = normalizeName(n);
+          if (name) acc[name] = 0;
+        });
+      }
+    });
+
+    // Process manual ledger entries
+    ledger.forEach(txn => {
+      const name = txn.person ? normalizeName(txn.person) : '';
       if (!name) return;
-      if (!acc[name]) acc[name] = 0;
-      // 'lent' means they owe you (+), 'borrowed' means you owe them (-)
       if (txn.type === 'lent') {
         acc[name] += txn.amount;
       } else {
         acc[name] -= txn.amount;
       }
     });
+
+    // Process split transactions
+    transactions.forEach(txn => {
+      if (!txn.withWhom) return;
+      if (txn.trackBalance === false) return; // Skip updating balances if balance tracking is disabled
+      const people = txn.withWhom.split(',').map(n => normalizeName(n)).filter(Boolean);
+      const numPeople = txn.numberOfPeople || (people.length + (txn.includeMe !== false ? 1 : 0)) || 1;
+      const share = txn.amount / numPeople;
+      
+      people.forEach(name => {
+        if (txn.type === 'expense') {
+          acc[name] += share;
+        } else if (txn.type === 'income') {
+          acc[name] -= share;
+        }
+      });
+    });
+
     return acc;
-  }, [ledger]);
+  }, [ledger, transactions]);
 
   const uniquePeople = Object.keys(balances).sort();
 
-  const totalGave = ledger.reduce((acc, curr) => curr.type === 'lent' ? acc + curr.amount : acc, 0);
-  const totalGot = ledger.reduce((acc, curr) => curr.type === 'borrowed' ? acc + curr.amount : acc, 0);
+  const { totalGave, totalGot } = useMemo(() => {
+    let gave = 0;
+    let got = 0;
+
+    // Process manual ledger entries
+    ledger.forEach(txn => {
+      if (txn.type === 'lent') {
+        gave += txn.amount;
+      } else {
+        got += txn.amount;
+      }
+    });
+
+    // Process split transactions
+    transactions.forEach(txn => {
+      if (!txn.withWhom) return;
+      if (txn.trackBalance === false) return; // Skip if balance tracking is disabled
+      const people = txn.withWhom.split(',').map(n => n.trim()).filter(Boolean);
+      const numPeople = txn.numberOfPeople || (people.length + (txn.includeMe !== false ? 1 : 0)) || 1;
+      const share = txn.amount / numPeople;
+      
+      people.forEach(() => {
+        if (txn.type === 'expense') {
+          gave += share;
+        } else if (txn.type === 'income') {
+          got += share;
+        }
+      });
+    });
+
+    return { totalGave: gave, totalGot: got };
+  }, [ledger, transactions]);
 
   return (
     <div style={{ padding: '20px 20px 24px', animation: 'fadeIn 0.6s ease' }}>

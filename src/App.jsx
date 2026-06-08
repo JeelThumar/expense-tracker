@@ -13,6 +13,7 @@ import { TransactionDetail } from './pages/TransactionDetail.jsx';
 import { Friends } from './pages/Friends.jsx';
 import { FriendDetail } from './pages/FriendDetail.jsx';
 import { AddLedger } from './pages/AddLedger.jsx';
+import { LedgerDetail } from './pages/LedgerDetail.jsx';
 import { Login } from './pages/Login.jsx';
 import { AppSettings } from './pages/AppSettings.jsx';
 import { useAppContext } from './context/AppContext.jsx';
@@ -42,6 +43,7 @@ const AuthWrapper = () => {
         <Route path="/add" element={<AddTransaction />} />
         <Route path="/transaction/:id" element={<TransactionDetail />} />
         <Route path="/add-ledger" element={<AddLedger />} />
+        <Route path="/ledger/:id" element={<LedgerDetail />} />
         <Route path="/profile-info" element={<ProfileInfo />} />
         <Route path="/app-settings" element={<AppSettings />} />
       </Routes>

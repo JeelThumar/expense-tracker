@@ -110,7 +110,14 @@ export const Layout = () => {
 
           {/* Floating Action Button */}
           <button 
-            onClick={() => navigate(location.pathname === '/friends' ? '/add-ledger' : '/add')}
+            onClick={() => {
+              if (location.pathname.startsWith('/friends/') && location.pathname !== '/friends') {
+                const friendName = location.pathname.slice(9);
+                navigate(`/add?friend=${friendName}`);
+              } else {
+                navigate(location.pathname === '/friends' ? '/add-ledger' : '/add');
+              }
+            }}
             style={{
               width: '56px',
               height: '56px',

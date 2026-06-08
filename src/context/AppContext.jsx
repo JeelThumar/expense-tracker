@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import localforage from 'localforage';
+import { normalizeName, normalizePeopleList } from '../utils/names';
 import { auth, db, googleProvider } from '../firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, updateProfile } from 'firebase/auth';
 import { 
@@ -134,7 +135,8 @@ export const AppProvider = ({ children }) => {
       finalDate.setFullYear(year, month - 1, day);
     }
     const { date, ...rest } = txn;
-    const newTxn = { ...rest, date: finalDate.toISOString() };
+    const normalizedWithWhom = rest.withWhom ? normalizePeopleList(rest.withWhom) : '';
+    const newTxn = { ...rest, withWhom: normalizedWithWhom, date: finalDate.toISOString() };
 
     // Save to Firestore ONLY if it's a real authenticated user
     if (user && !user.isGuest) {
@@ -173,7 +175,8 @@ export const AppProvider = ({ children }) => {
       finalDate.setFullYear(year, month - 1, day);
     }
     const { date, ...rest } = updatedTxn;
-    const finalTxn = { ...rest, date: finalDate.toISOString() };
+    const normalizedWithWhom = rest.withWhom ? normalizePeopleList(rest.withWhom) : '';
+    const finalTxn = { ...rest, withWhom: normalizedWithWhom, date: finalDate.toISOString() };
     
     if (user && !user.isGuest) {
       try {
@@ -199,7 +202,8 @@ export const AppProvider = ({ children }) => {
       finalDate.setFullYear(year, month - 1, day);
     }
     const { date, ...rest } = txn;
-    const newTxn = { ...rest, date: finalDate.toISOString() };
+    const normalizedPerson = rest.person ? normalizeName(rest.person) : '';
+    const newTxn = { ...rest, person: normalizedPerson, date: finalDate.toISOString() };
 
     if (user && !user.isGuest) {
       try {
@@ -223,6 +227,130 @@ export const AppProvider = ({ children }) => {
       setLedger(prev => prev.filter(t => t.id !== id));
     }
   };
+
+  const updateLedgerTxn = async (id, updatedTxn) => {
+    let finalDate = new Date();
+    if (updatedTxn.date) {
+      const [year, month, day] = updatedTxn.date.split('-');
+      finalDate.setFullYear(year, month - 1, day);
+    }
+    const { date, ...rest } = updatedTxn;
+    const normalizedPerson = rest.person ? normalizeName(rest.person) : '';
+    const finalTxn = { ...rest, person: normalizedPerson, date: finalDate.toISOString() };
+
+    if (user && !user.isGuest) {
+      try {
+        await updateDoc(doc(db, 'users', user.uid, 'ledger', id), finalTxn);
+      } catch (err) {
+        console.error("Update ledger failed:", err);
+      }
+    } else {
+      setLedger(prev => prev.map(t => t.id === id ? { ...finalTxn, id } : t));
+    }
+  };
+
+  const renameFriend = async (oldName, newName) => {
+    const normalizedOld = normalizeName(oldName);
+    const normalizedNew = normalizeName(newName);
+    if (!normalizedNew || normalizedOld === normalizedNew) return;
+
+    const updatedLedger = ledger.map(item => {
+      if (normalizeName(item.person) === normalizedOld) {
+        return { ...item, person: normalizedNew };
+      }
+      return item;
+    });
+
+    const updatedTransactions = transactions.map(item => {
+      if (item.withWhom) {
+        const names = item.withWhom.split(',').map(n => n.trim());
+        const hasOldName = names.some(n => normalizeName(n) === normalizedOld);
+        if (hasOldName) {
+          const newNames = names.map(n => normalizeName(n) === normalizedOld ? normalizedNew : n);
+          return { ...item, withWhom: newNames.join(', ') };
+        }
+      }
+      return item;
+    });
+
+    if (user && !user.isGuest) {
+      try {
+        const ledgerPromises = ledger
+          .filter(item => normalizeName(item.person) === normalizedOld)
+          .map(item => updateDoc(doc(db, 'users', user.uid, 'ledger', item.id), { person: normalizedNew }));
+
+        const txnPromises = transactions
+          .filter(item => item.withWhom && item.withWhom.split(',').map(n => n.trim().toLowerCase()).includes(normalizedOld.toLowerCase()))
+          .map(item => {
+            const names = item.withWhom.split(',').map(n => n.trim());
+            const newNames = names.map(n => normalizeName(n) === normalizedOld ? normalizedNew : n);
+            return updateDoc(doc(db, 'users', user.uid, 'transactions', item.id), { withWhom: newNames.join(', ') });
+          });
+
+        await Promise.all([...ledgerPromises, ...txnPromises]);
+      } catch (err) {
+        console.error("Rename friend failed:", err);
+      }
+    } else {
+      setLedger(updatedLedger);
+      setTransactions(updatedTransactions);
+    }
+  };
+
+  const deleteFriend = async (friendName) => {
+    const normalized = normalizeName(friendName);
+
+    const updatedLedger = ledger.filter(item => normalizeName(item.person) !== normalized);
+    const updatedTransactions = transactions.map(item => {
+      if (item.withWhom) {
+        const names = item.withWhom.split(',').map(n => n.trim()).filter(Boolean);
+        const filteredNames = names.filter(n => normalizeName(n) !== normalized);
+        if (filteredNames.length === 0) {
+          return { ...item, withWhom: '', numberOfPeople: 1 };
+        } else {
+          const includeMe = item.includeMe !== false;
+          return {
+            ...item,
+            withWhom: filteredNames.join(', '),
+            numberOfPeople: filteredNames.length + (includeMe ? 1 : 0)
+          };
+        }
+      }
+      return item;
+    });
+
+    if (user && !user.isGuest) {
+      try {
+        const ledgerPromises = ledger
+          .filter(item => normalizeName(item.person) === normalized)
+          .map(item => deleteDoc(doc(db, 'users', user.uid, 'ledger', item.id)));
+
+        const txnPromises = transactions
+          .filter(item => item.withWhom && item.withWhom.split(',').map(n => n.trim().toLowerCase()).includes(normalized.toLowerCase()))
+          .map(item => {
+            const names = item.withWhom.split(',').map(n => n.trim()).filter(Boolean);
+            const filteredNames = names.filter(n => normalizeName(n) !== normalized);
+            if (filteredNames.length === 0) {
+              return updateDoc(doc(db, 'users', user.uid, 'transactions', item.id), { withWhom: '', numberOfPeople: 1 });
+            } else {
+              const includeMe = item.includeMe !== false;
+              return updateDoc(doc(db, 'users', user.uid, 'transactions', item.id), {
+                withWhom: filteredNames.join(', '),
+                numberOfPeople: filteredNames.length + (includeMe ? 1 : 0)
+              });
+            }
+          });
+
+        await Promise.all([...ledgerPromises, ...txnPromises]);
+      } catch (err) {
+        console.error("Delete friend failed:", err);
+      }
+    } else {
+      setLedger(updatedLedger);
+      setTransactions(updatedTransactions);
+    }
+  };
+
 
   const login = async (guestData = null) => {
     if (guestData) {
@@ -281,6 +409,7 @@ export const AppProvider = ({ children }) => {
     await localforage.clear();
   };
 
+
   return (
     <AppContext.Provider value={{
       user,
@@ -296,6 +425,9 @@ export const AppProvider = ({ children }) => {
       deleteTransaction,
       addLedgerTxn,
       deleteLedgerTxn,
+      updateLedgerTxn,
+      renameFriend,
+      deleteFriend,
       getBalance,
       isLoading,
       settings,

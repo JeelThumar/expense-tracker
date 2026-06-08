@@ -9,15 +9,21 @@ export const AddTransaction = () => {
   const navigate = useNavigate();
   const { transactions, addTransaction, settings } = useAppContext();
   
+  const queryParams = new URLSearchParams(window.location.search);
+  const friendParam = queryParams.get('friend');
+  const defaultFriend = friendParam ? decodeURIComponent(friendParam) : '';
+
   const [newTxn, setNewTxn] = useState({ 
     type: 'expense', 
     amount: '', 
     category: '', 
     note: '', 
-    withWhom: '',
-    includeMe: true,
+    withWhom: defaultFriend,
+    includeMe: false,
+    numberOfPeople: defaultFriend ? 1 : 1,
+    trackBalance: false,
     date: format(new Date(), 'yyyy-MM-dd'), // Default to today
-    isVehicle: false,
+    isVehicle: true,
     odometer: '',
     litres: '',
     pricePerLitre: ''
@@ -101,6 +107,8 @@ export const AddTransaction = () => {
       note: newTxn.note,
       withWhom: newTxn.withWhom,
       includeMe: newTxn.includeMe,
+      numberOfPeople: newTxn.numberOfPeople,
+      trackBalance: newTxn.trackBalance !== false,
       date: newTxn.date,
       isVehicle: newTxn.isVehicle,
       odometer: newTxn.odometer ? parseFloat(newTxn.odometer) : null,
@@ -128,14 +136,28 @@ export const AddTransaction = () => {
   const addPerson = (name) => {
     if (!name.trim()) return;
     const newPeople = [...selectedPeople, name.trim()];
-    setNewTxn(prev => ({ ...prev, withWhom: newPeople.join(', ') }));
+    setNewTxn(prev => {
+      const includeMe = prev.includeMe !== false;
+      return {
+        ...prev,
+        withWhom: newPeople.join(', '),
+        numberOfPeople: newPeople.length + (includeMe ? 1 : 0)
+      };
+    });
     setWithWhomInput('');
     setIsDropdownOpen(false);
   };
 
   const removePerson = (name) => {
     const newPeople = selectedPeople.filter(p => p !== name);
-    setNewTxn(prev => ({ ...prev, withWhom: newPeople.join(', ') }));
+    setNewTxn(prev => {
+      const includeMe = prev.includeMe !== false;
+      return {
+        ...prev,
+        withWhom: newPeople.join(', '),
+        numberOfPeople: newPeople.length + (includeMe ? 1 : 0)
+      };
+    });
   };
 
   return (
@@ -161,7 +183,13 @@ export const AddTransaction = () => {
             Expense
           </button>
           <button
-            onClick={() => setNewTxn(prev => ({ ...prev, type: 'income' }))}
+            onClick={() => setNewTxn(prev => ({
+              ...prev,
+              type: 'income',
+              withWhom: '',
+              numberOfPeople: 1,
+              includeMe: true
+            }))}
             style={{ flex: 1, padding: '12px', borderRadius: '16px', border: 'none', background: newTxn.type === 'income' ? 'var(--bg-main)' : 'transparent', color: newTxn.type === 'income' ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: newTxn.type === 'income' ? '0 4px 12px rgba(0,0,0,0.1)' : 'none' }}
           >
             Income
@@ -245,146 +273,237 @@ export const AddTransaction = () => {
             )}
           </div>
 
-          <div style={{ position: 'relative' }}>
-            <div
-              style={{
-                ...inputStyle,
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '8px',
-                padding: selectedPeople.length > 0 ? '12px 40px 12px 12px' : '16px 40px 16px 16px',
-                alignItems: 'center',
-                minHeight: '54px'
-              }}
-              onClick={() => setIsDropdownOpen(true)}
-            >
-              {selectedPeople.map(person => (
-                <div 
-                  key={person}
+          {newTxn.type === 'expense' && (
+            <>
+              <div style={{ position: 'relative' }}>
+                <div
                   style={{
+                    ...inputStyle,
                     display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                    padding: selectedPeople.length > 0 ? '12px 40px 12px 12px' : '16px 40px 16px 16px',
                     alignItems: 'center',
-                    gap: '6px',
-                    background: 'var(--bg-card-elevated)',
-                    padding: '4px 8px',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    color: 'var(--text-primary)'
+                    minHeight: '54px'
                   }}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={() => setIsDropdownOpen(true)}
                 >
-                  {person}
+                  {selectedPeople.map(person => (
+                    <div 
+                      key={person}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'var(--bg-card-elevated)',
+                        padding: '4px 8px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        color: 'var(--text-primary)'
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {person}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); removePerson(person); }}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', cursor: 'pointer', padding: 0 }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <input
+                    type="text"
+                    placeholder={selectedPeople.length === 0 ? "With Whom (Optional)" : ""}
+                    value={withWhomInput}
+                    onChange={(e) => {
+                      setWithWhomInput(e.target.value);
+                      setIsDropdownOpen(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault();
+                        addPerson(withWhomInput);
+                      } else if (e.key === 'Backspace' && withWhomInput === '' && selectedPeople.length > 0) {
+                        removePerson(selectedPeople[selectedPeople.length - 1]);
+                      }
+                    }}
+                    style={{
+                      background: 'transparent', border: 'none', color: 'var(--text-primary)', 
+                      fontSize: '16px', outline: 'none', flex: 1, minWidth: '100px'
+                    }}
+                  />
+                </div>
+                
+                <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)' }}>
+                  <IoChevronDown size={20} />
+                </div>
+                
+                {isDropdownOpen && (uniquePeople.length > 0 || withWhomInput.trim().length > 0) && (
+                  <>
+                    <div 
+                      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9 }} 
+                      onClick={() => setIsDropdownOpen(false)} 
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '16px',
+                      marginTop: '8px',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                      zIndex: 10
+                    }}>
+                    {withWhomInput.trim() && !uniquePeople.includes(withWhomInput.trim()) && (
+                      <div
+                        onClick={() => addPerson(withWhomInput.trim())}
+                        style={{
+                          padding: '16px',
+                          borderBottom: '1px solid var(--border-color)',
+                          cursor: 'pointer',
+                          fontSize: '16px',
+                          color: 'var(--accent-success)',
+                          fontWeight: '500'
+                        }}
+                      >
+                        Add "{withWhomInput.trim()}"
+                      </div>
+                    )}
+                    {uniquePeople
+                      .filter(p => !selectedPeople.includes(p)) // Exclude already selected
+                      .filter(p => p.toLowerCase().includes(withWhomInput.toLowerCase()))
+                      .map(p => (
+                      <div
+                        key={p}
+                        onClick={() => addPerson(p)}
+                        style={{
+                          padding: '16px',
+                          borderBottom: '1px solid var(--border-color)',
+                          cursor: 'pointer',
+                          fontSize: '16px',
+                          color: 'var(--text-primary)'
+                        }}
+                      >
+                        {p}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {newTxn.withWhom && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px' }}>
+                  <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Include me in the split</span>
                   <button 
-                    onClick={(e) => { e.stopPropagation(); removePerson(person); }}
-                    style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', cursor: 'pointer', padding: 0 }}
+                    type="button"
+                    onClick={() => {
+                      setNewTxn(prev => {
+                        const newIncludeMe = !prev.includeMe;
+                        const defaultNum = selectedPeople.length + (newIncludeMe ? 1 : 0);
+                        return {
+                          ...prev,
+                          includeMe: newIncludeMe,
+                          numberOfPeople: defaultNum
+                        };
+                      });
+                    }}
+                    style={{
+                      width: '44px', height: '24px', borderRadius: '12px', border: 'none',
+                      background: newTxn.includeMe ? 'var(--accent-success)' : 'var(--bg-card-elevated)',
+                      position: 'relative', cursor: 'pointer', transition: 'all 0.2s'
+                    }}
                   >
-                    <X size={14} />
+                    <div style={{
+                      width: '20px', height: '20px', borderRadius: '10px', background: '#fff',
+                      position: 'absolute', top: '2px', left: newTxn.includeMe ? '22px' : '2px',
+                      transition: 'all 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                    }} />
                   </button>
                 </div>
-              ))}
-              <input
-                type="text"
-                placeholder={selectedPeople.length === 0 ? "With Whom (Optional)" : ""}
-                value={withWhomInput}
-                onChange={(e) => {
-                  setWithWhomInput(e.target.value);
-                  setIsDropdownOpen(true);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ',') {
-                    e.preventDefault();
-                    addPerson(withWhomInput);
-                  } else if (e.key === 'Backspace' && withWhomInput === '' && selectedPeople.length > 0) {
-                    removePerson(selectedPeople[selectedPeople.length - 1]);
-                  }
-                }}
-                style={{
-                  background: 'transparent', border: 'none', color: 'var(--text-primary)', 
-                  fontSize: '16px', outline: 'none', flex: 1, minWidth: '100px'
-                }}
-              />
-            </div>
-            
-            <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)' }}>
-              <IoChevronDown size={20} />
-            </div>
-            
-            {isDropdownOpen && (uniquePeople.length > 0 || withWhomInput.trim().length > 0) && (
-              <>
-                <div 
-                  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9 }} 
-                  onClick={() => setIsDropdownOpen(false)} 
-                />
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '16px',
-                  marginTop: '8px',
-                  maxHeight: '200px',
-                  overflowY: 'auto',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                  zIndex: 10
-                }}>
-                {withWhomInput.trim() && !uniquePeople.includes(withWhomInput.trim()) && (
-                  <div
-                    onClick={() => addPerson(withWhomInput.trim())}
-                    style={{
-                      padding: '16px',
-                      borderBottom: '1px solid var(--border-color)',
-                      cursor: 'pointer',
-                      fontSize: '16px',
-                      color: 'var(--accent-success)',
-                      fontWeight: '500'
-                    }}
-                  >
-                    Add "{withWhomInput.trim()}"
-                  </div>
-                )}
-                {uniquePeople
-                  .filter(p => !selectedPeople.includes(p)) // Exclude already selected
-                  .filter(p => p.toLowerCase().includes(withWhomInput.toLowerCase()))
-                  .map(p => (
-                  <div
-                    key={p}
-                    onClick={() => addPerson(p)}
-                    style={{
-                      padding: '16px',
-                      borderBottom: '1px solid var(--border-color)',
-                      cursor: 'pointer',
-                      fontSize: '16px',
-                      color: 'var(--text-primary)'
-                    }}
-                  >
-                    {p}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
 
-        {newTxn.withWhom && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', marginBottom: '8px' }}>
-            <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Include me in the split</span>
-            <button 
-              onClick={() => setNewTxn(prev => ({ ...prev, includeMe: !prev.includeMe }))}
-              style={{
-                width: '44px', height: '24px', borderRadius: '12px', border: 'none',
-                background: newTxn.includeMe ? 'var(--accent-success)' : 'var(--bg-card-elevated)',
-                position: 'relative', cursor: 'pointer', transition: 'all 0.2s'
-              }}
-            >
-              <div style={{
-                width: '20px', height: '20px', borderRadius: '10px', background: '#fff',
-                position: 'absolute', top: '2px', left: newTxn.includeMe ? '22px' : '2px',
-                transition: 'all 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-              }} />
-            </button>
-          </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', marginTop: '4px' }}>
+                  <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Track split balance (they owe you)</span>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setNewTxn(prev => ({
+                        ...prev,
+                        trackBalance: prev.trackBalance !== false ? false : true
+                      }));
+                    }}
+                    style={{
+                      width: '44px', height: '24px', borderRadius: '12px', border: 'none',
+                      background: newTxn.trackBalance !== false ? 'var(--accent-success)' : 'var(--bg-card-elevated)',
+                      position: 'relative', cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{
+                      width: '20px', height: '20px', borderRadius: '10px', background: '#fff',
+                      position: 'absolute', top: '2px', left: newTxn.trackBalance !== false ? '22px' : '2px',
+                      transition: 'all 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                    }} />
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', marginTop: '4px' }}>
+                  <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Split between</span>
+                  <span style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                    {newTxn.numberOfPeople || 1} {newTxn.numberOfPeople === 1 ? 'person' : 'people'}
+                  </span>
+                </div>
+
+                {(() => {
+                  const amountVal = parsedAmount ? parsedAmount.result : (parseFloat(newTxn.amount) || 0);
+                  if (amountVal > 0) {
+                    const numPeople = newTxn.numberOfPeople || 1;
+                    const share = amountVal / numPeople;
+                    const userShare = newTxn.includeMe ? share : 0;
+                    const friendsCount = selectedPeople.length;
+                    
+                    return (
+                      <div style={{
+                        background: 'rgba(255,255,255,0.02)',
+                        borderRadius: '16px',
+                        padding: '12px 16px',
+                        marginTop: '8px',
+                        border: '1px solid rgba(255,255,255,0.03)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>Share per person</span>
+                          <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{share.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                        </div>
+                        {newTxn.includeMe && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Your share</span>
+                            <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{userShare.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            {friendsCount === 1 ? `${selectedPeople[0]} owes you` : 'Friends owe you (total)'}
+                          </span>
+                          <span style={{ fontWeight: '700', color: newTxn.trackBalance !== false ? 'var(--accent-success)' : 'var(--text-secondary)' }}>
+                            ₹{newTxn.trackBalance !== false ? (share * friendsCount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            )}
+          </>
         )}
           
           <input

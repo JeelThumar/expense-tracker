@@ -35,6 +35,7 @@ export const AppSettings = () => {
 
       <div style={{ padding: '0 20px 40px 20px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
         
+
         {/* Units Section */}
         <div>
           <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>

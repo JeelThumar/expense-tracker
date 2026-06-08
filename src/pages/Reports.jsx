@@ -8,8 +8,7 @@ import {
 } from 'recharts';
 import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth, startOfYear, endOfYear, eachDayOfInterval, isSameDay, isValid } from 'date-fns';
 import { ArrowUpRight, ArrowDownRight, TrendingUp, Wallet, Calendar as CalendarIcon, Info } from 'lucide-react';
-import { IoChevronDown, IoCloudDownloadOutline, IoCalendarOutline } from 'react-icons/io5';
-import * as XLSX from 'xlsx';
+import { IoChevronDown } from 'react-icons/io5';
 
 const COLORS = ['#ffffff', '#a0a0a0', '#6e6e6e', '#34c759', '#ff9f0a', '#007aff', '#ff3b30'];
 
@@ -50,8 +49,20 @@ export const Reports = () => {
     const expenses = filteredTransactions.filter(t => t.type === 'expense');
     const income = filteredTransactions.filter(t => t.type === 'income');
     
-    const totalExpense = expenses.reduce((acc, curr) => acc + curr.amount, 0);
-    const totalIncome = income.reduce((acc, curr) => acc + curr.amount, 0);
+    const totalExpense = expenses.reduce((acc, curr) => {
+      const people = curr.withWhom ? curr.withWhom.split(',').map(n => n.trim()).filter(Boolean) : [];
+      const numPeople = curr.numberOfPeople || (people.length + (curr.includeMe !== false ? 1 : 0)) || 1;
+      const userShare = curr.withWhom ? (curr.includeMe !== false ? curr.amount / numPeople : 0) : curr.amount;
+      return acc + userShare;
+    }, 0);
+    
+    const totalIncome = income.reduce((acc, curr) => {
+      const people = curr.withWhom ? curr.withWhom.split(',').map(n => n.trim()).filter(Boolean) : [];
+      const numPeople = curr.numberOfPeople || (people.length + (curr.includeMe !== false ? 1 : 0)) || 1;
+      const userShare = curr.withWhom ? (curr.includeMe !== false ? curr.amount / numPeople : 0) : curr.amount;
+      return acc + userShare;
+    }, 0);
+    
     const balance = totalIncome - totalExpense;
     
     // Daily average
@@ -73,7 +84,10 @@ export const Reports = () => {
     const expenses = filteredTransactions.filter(t => t.type === 'expense');
     const categoryMap = {};
     expenses.forEach(t => {
-      categoryMap[t.category] = (categoryMap[t.category] || 0) + t.amount;
+      const people = t.withWhom ? t.withWhom.split(',').map(n => n.trim()).filter(Boolean) : [];
+      const numPeople = t.numberOfPeople || (people.length + (t.includeMe !== false ? 1 : 0)) || 1;
+      const userShare = t.withWhom ? (t.includeMe !== false ? t.amount / numPeople : 0) : t.amount;
+      categoryMap[t.category] = (categoryMap[t.category] || 0) + userShare;
     });
     return Object.entries(categoryMap)
       .map(([name, value]) => ({ name, value }))
@@ -87,41 +101,18 @@ export const Reports = () => {
     filteredTransactions.forEach(t => {
       const dateKey = format(parseISO(t.date), 'MMM dd');
       if (!dateMap[dateKey]) dateMap[dateKey] = { date: dateKey, expense: 0, income: 0 };
-      if (t.type === 'expense') dateMap[dateKey].expense += t.amount;
-      else dateMap[dateKey].income += t.amount;
+      
+      const people = t.withWhom ? t.withWhom.split(',').map(n => n.trim()).filter(Boolean) : [];
+      const numPeople = t.numberOfPeople || (people.length + (t.includeMe !== false ? 1 : 0)) || 1;
+      const userShare = t.withWhom ? (t.includeMe !== false ? t.amount / numPeople : 0) : t.amount;
+
+      if (t.type === 'expense') dateMap[dateKey].expense += userShare;
+      else dateMap[dateKey].income += userShare;
     });
     return Object.values(dateMap).sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [filteredTransactions]);
   
-  const handleExport = () => {
-    if (filteredTransactions.length === 0) {
-      alert('No data to export for the selected filters.');
-      return;
-    }
 
-    const dataToExport = filteredTransactions.map(txn => ({
-      Date: format(parseISO(txn.date), 'yyyy-MM-dd HH:mm'),
-      Type: txn.type === 'income' ? 'Income' : 'Expense',
-      Category: txn.category,
-      Amount: txn.amount,
-      'With Whom': txn.withWhom || '',
-      Note: txn.note || '',
-      'Is Vehicle': txn.isVehicle ? 'Yes' : 'No',
-      'Odometer': txn.odometer || '',
-      'Fuel (L/G)': txn.litres || '',
-      'Price/Unit': txn.pricePerLitre || ''
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
-    
-    const dateRangeStr = dateFilter.type === 'month' ? dateFilter.value : 
-                        dateFilter.type === 'year' ? dateFilter.value : 
-                        `${dateFilter.start}_to_${dateFilter.end}`;
-    
-    XLSX.writeFile(workbook, `Trecker_Report_${dateRangeStr}.xlsx`);
-  };
 
   return (
     <div style={{ padding: '20px 20px 24px', paddingBottom: '100px' }}>
@@ -166,17 +157,6 @@ export const Reports = () => {
             }}
           >
             VEHICLE
-          </button>
-          <button 
-            onClick={() => setActiveTab('export')}
-            style={{ 
-              background: activeTab === 'export' ? 'var(--text-primary)' : 'transparent',
-              color: activeTab === 'export' ? 'var(--bg-main)' : 'var(--text-secondary)',
-              border: 'none', padding: '10px 16px', borderRadius: '12px', fontSize: '12px', fontWeight: '800', cursor: 'pointer', transition: 'all 0.3s ease',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            EXPORT
           </button>
         </div>
 
@@ -270,66 +250,9 @@ export const Reports = () => {
             </div>
           </Card>
         </div>
-      ) : activeTab === 'vehicle' ? (
-        <div className="animate-slide-up">
-          <VehicleInsights transactions={filteredTransactions} />
-        </div>
       ) : (
         <div className="animate-slide-up">
-          <Card style={{ padding: '32px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-            <div style={{ 
-              width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(255,255,255,0.05)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', color: 'var(--text-primary)'
-            }}>
-              <IoCloudDownloadOutline size={32} />
-            </div>
-            <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '8px' }}>Export Report</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '32px', maxWidth: '240px', margin: '0 auto 32px' }}>
-              Download your transaction data for the selected period as an Excel file.
-            </p>
-            
-            <DateFilter filter={dateFilter} setFilter={setDateFilter}>
-              <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: '16px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
-                <IoCalendarOutline size={18} style={{ color: 'var(--text-tertiary)' }} />
-                <span style={{ fontSize: '14px', fontWeight: '600' }}>
-                  {dateFilter.type === 'month' ? format(parseISO(dateFilter.value + '-01'), 'MMMM yyyy') : 
-                   dateFilter.type === 'year' ? dateFilter.value : 
-                   (dateFilter.start && dateFilter.end) ? `${format(parseISO(dateFilter.start), 'MMM d, yyyy')} - ${format(parseISO(dateFilter.end), 'MMM d, yyyy')}` : 
-                   'Select Date Range'}
-                </span>
-              </div>
-            </DateFilter>
-
-            <button 
-              onClick={handleExport}
-              style={{
-                width: '100%',
-                padding: '16px',
-                borderRadius: '16px',
-                border: 'none',
-                background: 'var(--text-primary)',
-                color: 'var(--bg-main)',
-                fontSize: '16px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}
-              className="export-btn"
-            >
-              <IoCloudDownloadOutline size={20} />
-              Download Excel
-            </button>
-            
-            {filteredTransactions.length === 0 && (
-              <p style={{ color: '#ff4b4b', fontSize: '12px', marginTop: '16px' }}>
-                No transactions found for this period.
-              </p>
-            )}
-          </Card>
+          <VehicleInsights transactions={filteredTransactions} />
         </div>
       )}
     </div>
@@ -347,7 +270,12 @@ const VehicleInsights = ({ transactions }) => {
     if (vehicleTxns.length === 0) return null;
 
     const totalFuel = vehicleTxns.reduce((acc, t) => acc + (t.litres || 0), 0);
-    const totalCost = vehicleTxns.reduce((acc, t) => acc + t.amount, 0);
+    const totalCost = vehicleTxns.reduce((acc, t) => {
+      const people = t.withWhom ? t.withWhom.split(',').map(n => n.trim()).filter(Boolean) : [];
+      const numPeople = t.numberOfPeople || (people.length + (t.includeMe !== false ? 1 : 0)) || 1;
+      const userShare = t.withWhom ? (t.includeMe !== false ? t.amount / numPeople : 0) : t.amount;
+      return acc + userShare;
+    }, 0);
     
     const odometers = vehicleTxns.map(t => t.odometer).filter(o => o !== null && o !== undefined);
     let distance = 0;

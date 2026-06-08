@@ -66,13 +66,39 @@ export const Transactions = () => {
   }, [dateAndPersonFiltered, filter]);
 
   // Aggregate totals for the dropdown
-  const totalIncome = useMemo(() => dateAndPersonFiltered.reduce((acc, curr) => 
-    curr.type === 'income' ? acc + curr.amount : acc, 0
-  ), [dateAndPersonFiltered]);
+  const totalIncome = useMemo(() => dateAndPersonFiltered.reduce((acc, curr) => {
+    if (curr.type !== 'income') return acc;
+    if (selectedPerson !== 'Everyone') {
+      if (curr.trackBalance === false) return acc; // Friend's share is 0
+      const people = curr.withWhom?.split(',').map(n => n.trim()).filter(Boolean) || [];
+      const numPeople = curr.numberOfPeople || (people.length + (curr.includeMe !== false ? 1 : 0)) || 1;
+      return acc + (curr.amount / numPeople);
+    } else {
+      if (curr.withWhom) {
+        const people = curr.withWhom.split(',').map(n => n.trim()).filter(Boolean);
+        const numPeople = curr.numberOfPeople || (people.length + (curr.includeMe !== false ? 1 : 0)) || 1;
+        return acc + (curr.trackBalance === false ? curr.amount : (curr.includeMe !== false ? curr.amount / numPeople : 0));
+      }
+      return acc + curr.amount;
+    }
+  }, 0), [dateAndPersonFiltered, selectedPerson]);
   
-  const totalExpense = useMemo(() => dateAndPersonFiltered.reduce((acc, curr) => 
-    curr.type === 'expense' ? acc + curr.amount : acc, 0
-  ), [dateAndPersonFiltered]);
+  const totalExpense = useMemo(() => dateAndPersonFiltered.reduce((acc, curr) => {
+    if (curr.type !== 'expense') return acc;
+    if (selectedPerson !== 'Everyone') {
+      if (curr.trackBalance === false) return acc; // Friend's share is 0
+      const people = curr.withWhom?.split(',').map(n => n.trim()).filter(Boolean) || [];
+      const numPeople = curr.numberOfPeople || (people.length + (curr.includeMe !== false ? 1 : 0)) || 1;
+      return acc + (curr.amount / numPeople);
+    } else {
+      if (curr.withWhom) {
+        const people = curr.withWhom.split(',').map(n => n.trim()).filter(Boolean);
+        const numPeople = curr.numberOfPeople || (people.length + (curr.includeMe !== false ? 1 : 0)) || 1;
+        return acc + (curr.trackBalance === false ? curr.amount : (curr.includeMe !== false ? curr.amount / numPeople : 0));
+      }
+      return acc + curr.amount;
+    }
+  }, 0), [dateAndPersonFiltered, selectedPerson]);
 
   return (
     <div style={{ padding: '20px 20px 24px', animation: 'fadeIn 0.6s ease' }}>
@@ -215,7 +241,12 @@ export const Transactions = () => {
                         }
                         return dateMatch && (t.withWhom?.split(',') || []).map(n => n.trim()).includes(person);
                       })
-                      .reduce((acc, curr) => curr.type === 'income' ? acc + curr.amount : acc - curr.amount, 0);
+                      .reduce((acc, curr) => {
+                        const people = curr.withWhom?.split(',').map(n => n.trim()).filter(Boolean) || [];
+                        const numPeople = curr.numberOfPeople || (people.length + (curr.includeMe !== false ? 1 : 0)) || 1;
+                        const share = curr.amount / numPeople;
+                        return curr.type === 'income' ? acc + share : acc - share;
+                      }, 0);
 
                     return (
                       <div 
@@ -304,22 +335,52 @@ export const Transactions = () => {
                       </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontWeight: '800', fontSize: '16px', color: txn.type === 'income' ? 'var(--accent-success)' : 'var(--text-primary)' }}>
-                        {txn.type === 'income' ? '+' : '-'}₹{txn.amount.toLocaleString()}
-                      </div>
-                      {txn.withWhom && (
-                        <div style={{ 
-                          fontSize: '10px', 
-                          color: 'var(--text-secondary)', 
-                          marginTop: '2px',
-                          maxWidth: '100px',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}>
-                          {txn.withWhom}
-                        </div>
-                      )}
+                      {(() => {
+                        const people = txn.withWhom ? txn.withWhom.split(',').map(n => n.trim()).filter(Boolean) : [];
+                        const numPeople = txn.numberOfPeople || (people.length + (txn.includeMe !== false ? 1 : 0)) || 1;
+                        const isSplit = !!txn.withWhom;
+                                  const displayShare = selectedPerson !== 'Everyone'
+                          ? (txn.trackBalance === false ? 0 : txn.amount / numPeople)
+                          : (txn.withWhom ? (txn.trackBalance === false ? txn.amount : (txn.includeMe !== false ? txn.amount / numPeople : 0)) : txn.amount);
+
+                        return (
+                          <>
+                            <div style={{ fontWeight: '800', fontSize: '16px', color: txn.type === 'income' ? 'var(--accent-success)' : 'var(--text-primary)' }}>
+                              {txn.type === 'income' ? '+' : '-'}₹{displayShare.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </div>
+                            {isSplit && (
+                              <div style={{ 
+                                fontSize: '10px', 
+                                color: 'var(--text-secondary)', 
+                                marginTop: '2px',
+                                maxWidth: '160px',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }} title={`Total: ₹${txn.amount} split with ${txn.withWhom}`}>
+                                {selectedPerson !== 'Everyone' ? (
+                                  txn.trackBalance === false ? 'No payback' : `${selectedPerson}'s share`
+                                ) : (
+                                  txn.trackBalance === false ? 'Personal (No payback)' : (txn.includeMe === false ? 'Lent all' : 'Your share')
+                                )} · Total ₹{txn.amount.toLocaleString()}
+                              </div>
+                            )}
+                            {txn.withWhom && selectedPerson === 'Everyone' && (
+                              <div style={{ 
+                                fontSize: '9px', 
+                                color: 'var(--text-tertiary)', 
+                                marginTop: '1px',
+                                maxWidth: '160px',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                with {txn.withWhom}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}

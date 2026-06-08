@@ -7,9 +7,13 @@ export const AddLedger = () => {
   const navigate = useNavigate();
   const { ledger, addLedgerTxn } = useAppContext();
 
+  const queryParams = new URLSearchParams(window.location.search);
+  const friendParam = queryParams.get('friend');
+  const defaultFriend = friendParam ? decodeURIComponent(friendParam) : '';
+
   const [type, setType] = useState('lent'); // 'lent' or 'borrowed'
   const [amount, setAmount] = useState('');
-  const [person, setPerson] = useState('');
+  const [person, setPerson] = useState(defaultFriend);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
