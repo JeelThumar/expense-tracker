@@ -13,7 +13,8 @@ import {
   updateDoc,
   query,
   orderBy,
-  getDoc
+  getDoc,
+  getDocs
 } from 'firebase/firestore';
 
 const AppContext = createContext();
@@ -399,13 +400,36 @@ export const AppProvider = ({ children }) => {
   };
 
   const eraseAllData = async () => {
-    if (user) {
-      // In a real app, you'd delete Firestore docs. For now, just logout.
-      await logout();
+    if (user && !user.isGuest) {
+      try {
+        const uid = user.uid;
+        console.log("Erasing Firestore data for user:", uid);
+        
+        // 1. Get and delete all transactions
+        const txnsSnapshot = await getDocs(collection(db, 'users', uid, 'transactions'));
+        const txnDeletes = txnsSnapshot.docs.map(docSnap => 
+          deleteDoc(doc(db, 'users', uid, 'transactions', docSnap.id))
+        );
+        
+        // 2. Get and delete all ledger entries
+        const ledgerSnapshot = await getDocs(collection(db, 'users', uid, 'ledger'));
+        const ledgerDeletes = ledgerSnapshot.docs.map(docSnap => 
+          deleteDoc(doc(db, 'users', uid, 'ledger', docSnap.id))
+        );
+        
+        // 3. Delete user document (which holds settings)
+        const userDocRef = doc(db, 'users', uid);
+        const userDocDelete = deleteDoc(userDocRef);
+
+        await Promise.all([...txnDeletes, ...ledgerDeletes, userDocDelete]);
+        console.log("Firestore data successfully erased.");
+      } catch (err) {
+        console.error("Failed to erase Firestore data:", err);
+      }
     }
+    
     setTransactions([]);
     setLedger([]);
-    setUser(null);
     await localforage.clear();
   };
 

@@ -317,6 +317,21 @@ export const Transactions = () => {
                       <div>
                         <div style={{ fontWeight: '700', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {txn.category}
+                          {txn.paymentMode && (
+                            <span style={{ 
+                              fontSize: '9px', 
+                              fontWeight: '800', 
+                              textTransform: 'uppercase', 
+                              letterSpacing: '0.5px',
+                              padding: '2px 6px',
+                              borderRadius: '6px',
+                              background: txn.paymentMode === 'cash' ? 'rgba(255, 159, 10, 0.1)' : 'rgba(52, 120, 246, 0.1)',
+                              color: txn.paymentMode === 'cash' ? '#ff9f0a' : '#007aff',
+                              border: txn.paymentMode === 'cash' ? '1px solid rgba(255, 159, 10, 0.2)' : '1px solid rgba(52, 120, 246, 0.2)'
+                            }}>
+                              {txn.paymentMode}
+                            </span>
+                          )}
                           {txn.isImported && (
                             <IoCloudDownloadOutline size={12} color="var(--text-tertiary)" title="Imported" />
                           )}

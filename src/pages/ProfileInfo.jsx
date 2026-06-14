@@ -8,9 +8,22 @@ export const ProfileInfo = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  const [firstName, setFirstName] = useState(user?.firstName || '');
-  const [lastName, setLastName] = useState(user?.lastName || '');
-  const [photo, setPhoto] = useState(user?.photo || null);
+  // Helper to split displayName or fallback to firstName/lastName
+  const getInitialNames = () => {
+    if (user?.displayName) {
+      const parts = user.displayName.trim().split(/\s+/);
+      const first = parts[0] || '';
+      const last = parts.slice(1).join(' ') || '';
+      return { first, last };
+    }
+    return { first: user?.firstName || '', last: user?.lastName || '' };
+  };
+
+  const initialNames = getInitialNames();
+  const [firstName, setFirstName] = useState(initialNames.first);
+  const [lastName, setLastName] = useState(initialNames.last);
+  const [photo, setPhoto] = useState(user?.photoURL || user?.photo || null);
+
 
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
@@ -55,7 +68,7 @@ export const ProfileInfo = () => {
             width: '110px',
             height: '110px',
             borderRadius: '30px',
-            background: photo ? `url(${photo}) center/cover` : 'var(--bg-card)',
+            background: photo ? `url("${photo}") center/cover` : 'var(--bg-card)',
             border: photo ? '2px solid var(--accent-success)' : '2px dashed var(--text-tertiary)',
             display: 'flex',
             alignItems: 'center',

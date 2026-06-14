@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useAppContext } from '../context/AppContext.jsx';
 import { Card } from '../components/ui.jsx';
 import { DateFilter } from '../components/DateFilter.jsx';
+import { useNavigate } from 'react-router-dom';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, 
   AreaChart, Area, XAxis, YAxis, CartesianGrid 
@@ -261,34 +262,67 @@ export const Reports = () => {
 
 const VehicleInsights = ({ transactions }) => {
   const { settings } = useAppContext();
+  const navigate = useNavigate();
   
-  const stats = useMemo(() => {
-    const vehicleTxns = transactions
-      .filter(t => t.isVehicle)
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-    if (vehicleTxns.length === 0) return null;
+  const vehicleTxns = useMemo(() => {
+    return transactions
+      .filter(t => t.isVehicle && (t.category?.toLowerCase().includes('fuel') || t.litres > 0))
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [transactions]);
 
-    const totalFuel = vehicleTxns.reduce((acc, t) => acc + (t.litres || 0), 0);
+  const stats = useMemo(() => {
+    // Sort ascending for chronological calculation
+    const sortedAsc = [...vehicleTxns]
+      .filter(t => t.category?.toLowerCase().includes('fuel') || t.litres > 0)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
     const totalCost = vehicleTxns.reduce((acc, t) => {
       const people = t.withWhom ? t.withWhom.split(',').map(n => n.trim()).filter(Boolean) : [];
       const numPeople = t.numberOfPeople || (people.length + (t.includeMe !== false ? 1 : 0)) || 1;
       const userShare = t.withWhom ? (t.includeMe !== false ? t.amount / numPeople : 0) : t.amount;
       return acc + userShare;
     }, 0);
-    
-    const odometers = vehicleTxns.map(t => t.odometer).filter(o => o !== null && o !== undefined);
+
+    const totalFuel = vehicleTxns.reduce((acc, t) => acc + (t.litres || 0), 0);
+
+    const odometers = sortedAsc.map(t => t.odometer).filter(o => o !== null && o !== undefined);
     let distance = 0;
     if (odometers.length >= 2) {
       distance = Math.max(0, Math.max(...odometers) - Math.min(...odometers));
     }
 
-    const efficiency = (distance > 0 && totalFuel > 0) ? (distance / totalFuel).toFixed(2) : 0;
+    // Averages calculation:
+    // Need at least 2 logs with odometer values to compute efficiency
+    const validFuelLogs = sortedAsc.filter(t => t.odometer !== null && t.odometer !== undefined && t.litres > 0);
 
-    return { totalFuel, totalCost, distance, efficiency };
-  }, [transactions]);
+    let lastEfficiency = null;
+    let overallEfficiency = null;
+    let lastDistance = 0;
+    let lastLitres = 0;
 
-  if (!stats) {
+    if (validFuelLogs.length >= 2) {
+      // 1. Last refueling average (mileage from the second to last fill-up to the last one)
+      const lastLog = validFuelLogs[validFuelLogs.length - 1];
+      const prevLog = validFuelLogs[validFuelLogs.length - 2];
+      lastDistance = lastLog.odometer - prevLog.odometer;
+      lastLitres = lastLog.litres;
+      if (lastDistance > 0 && lastLitres > 0) {
+        lastEfficiency = (lastDistance / lastLitres).toFixed(2);
+      }
+
+      // 2. Full average mileage (total distance from first to last / total litres filled excluding first log)
+      const firstLog = validFuelLogs[0];
+      const overallDist = lastLog.odometer - firstLog.odometer;
+      const overallLitres = validFuelLogs.slice(1).reduce((acc, t) => acc + (t.litres || 0), 0);
+      if (overallDist > 0 && overallLitres > 0) {
+        overallEfficiency = (overallDist / overallLitres).toFixed(2);
+      }
+    }
+
+    return { totalFuel, totalCost, distance, lastEfficiency, overallEfficiency, lastDistance, lastLitres };
+  }, [vehicleTxns]);
+
+  if (!stats || vehicleTxns.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-tertiary)' }}>
         <div style={{ fontSize: '40px', marginBottom: '16px' }}>🚜</div>
@@ -311,15 +345,33 @@ const VehicleInsights = ({ transactions }) => {
         </Card>
       </div>
 
-      <Card style={{ padding: '24px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-        <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Avg. Efficiency</div>
-        <div style={{ fontSize: '48px', fontWeight: '900', color: 'var(--accent-success)', letterSpacing: '-2px' }}>
-          {stats.efficiency}
-        </div>
-        <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-          {settings.distanceUnit} per {settings.fuelUnit}
-        </div>
-      </Card>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        {/* Last Refueling Mileage Card */}
+        <Card style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Last Mileage</div>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: 'var(--accent-success)', letterSpacing: '-1px' }}>
+            {stats.lastEfficiency ? `${stats.lastEfficiency}` : '--'}
+          </div>
+          <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '6px', fontWeight: '600' }}>
+            {stats.lastEfficiency 
+              ? `${stats.lastDistance} ${settings.distanceUnit} / ${stats.lastLitres} ${settings.fuelUnit}` 
+              : 'Need 2+ fuel logs'}
+          </div>
+        </Card>
+
+        {/* Full Average Mileage Card */}
+        <Card style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Full Average</div>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: 'var(--accent-success)', letterSpacing: '-1px' }}>
+            {stats.overallEfficiency ? `${stats.overallEfficiency}` : '--'}
+          </div>
+          <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '6px', fontWeight: '600' }}>
+            {stats.overallEfficiency 
+              ? 'Lifetime mileage' 
+              : 'Need 2+ fuel logs'}
+          </div>
+        </Card>
+      </div>
 
       <Card style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -327,6 +379,96 @@ const VehicleInsights = ({ transactions }) => {
           <span style={{ fontSize: '18px', fontWeight: '800' }}>₹{stats.totalCost.toLocaleString()}</span>
         </div>
       </Card>
+
+      {/* Recent Vehicle Spends Section */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', padding: '0 4px' }}>
+        <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Recent Vehicle Spends</h3>
+        {vehicleTxns.length > 3 && (
+          <button 
+            onClick={() => navigate('/vehicle-expenses')}
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              fontSize: '13px', 
+              color: 'var(--text-secondary)', 
+              fontWeight: '600', 
+              cursor: 'pointer',
+              padding: '4px 8px'
+            }}
+          >
+            View More
+          </button>
+        )}
+      </div>
+
+      {/* Spends List */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '40px' }}>
+        {vehicleTxns.slice(0, 3).map((txn, index) => {
+          const people = txn.withWhom ? txn.withWhom.split(',').map(n => n.trim()).filter(Boolean) : [];
+          const numPeople = txn.numberOfPeople || (people.length + (txn.includeMe !== false ? 1 : 0)) || 1;
+          const displayShare = txn.withWhom ? (txn.includeMe !== false ? txn.amount / numPeople : 0) : txn.amount;
+
+          return (
+            <div 
+              key={txn.id} 
+              onClick={() => navigate(`/transaction/${txn.id}`)}
+              className="animate-slide-up"
+              style={{ 
+                animationDelay: `${index * 0.05}s`,
+                background: 'var(--bg-card)',
+                borderRadius: '20px',
+                padding: '18px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                border: '1px solid var(--border-color)',
+                transition: 'transform 0.2s ease, background 0.2s ease'
+              }}
+            >
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <div style={{ 
+                  width: '44px', height: '44px', borderRadius: '14px', 
+                  background: 'rgba(255,255,255,0.03)', display: 'flex', 
+                  alignItems: 'center', justifyContent: 'center', fontSize: '20px' 
+                }}>
+                  ⛽
+                </div>
+                <div>
+                  <div style={{ 
+                    fontWeight: '700', 
+                    fontSize: '15px', 
+                    marginBottom: '2px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px'
+                  }}>
+                    {txn.category}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    {format(new Date(txn.date), 'MMM dd, yyyy')}
+                    {txn.litres && ` · ${txn.litres} ${settings.fuelUnit}s`}
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ 
+                  fontWeight: '800', 
+                  fontSize: '17px', 
+                  color: 'var(--text-primary)' 
+                }}>
+                  -₹{displayShare.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                </div>
+                {txn.withWhom && (
+                  <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    Split with {txn.withWhom}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

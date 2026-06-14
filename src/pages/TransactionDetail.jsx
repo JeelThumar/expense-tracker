@@ -32,7 +32,8 @@ export const TransactionDetail = () => {
         isVehicle: !!existingTxn.isVehicle,
         odometer: existingTxn.odometer?.toString() || '',
         litres: existingTxn.litres?.toString() || '',
-        pricePerLitre: existingTxn.pricePerLitre?.toString() || ''
+        pricePerLitre: existingTxn.pricePerLitre?.toString() || '',
+        paymentMode: existingTxn.paymentMode || 'online'
       });
     }
   }, [id, transactions]);
@@ -119,7 +120,8 @@ export const TransactionDetail = () => {
       isVehicle: newTxn.isVehicle,
       odometer: newTxn.odometer ? parseFloat(newTxn.odometer) : null,
       litres: newTxn.litres ? parseFloat(newTxn.litres) : null,
-      pricePerLitre: newTxn.pricePerLitre ? parseFloat(newTxn.pricePerLitre) : settings.defaultFuelPrice
+      pricePerLitre: newTxn.pricePerLitre ? parseFloat(newTxn.pricePerLitre) : settings.defaultFuelPrice,
+      paymentMode: newTxn.paymentMode || 'online'
     });
     
     setIsEditing(false); // Switch back to view mode
@@ -248,6 +250,24 @@ export const TransactionDetail = () => {
               <div>
                 <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>Category</span>
                 <span style={{ fontSize: '20px', fontWeight: '700' }}>{newTxn.category}</span>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>Payment Mode</span>
+                <span style={{ 
+                  fontSize: '13px', 
+                  fontWeight: '800', 
+                  textTransform: 'uppercase', 
+                  letterSpacing: '0.5px',
+                  padding: '4px 10px',
+                  borderRadius: '8px',
+                  background: (newTxn.paymentMode === 'cash') ? 'rgba(255, 159, 10, 0.1)' : 'rgba(52, 120, 246, 0.1)',
+                  color: (newTxn.paymentMode === 'cash') ? '#ff9f0a' : '#007aff',
+                  border: (newTxn.paymentMode === 'cash') ? '1px solid rgba(255, 159, 10, 0.2)' : '1px solid rgba(52, 120, 246, 0.2)',
+                  display: 'inline-block'
+                }}>
+                  {newTxn.paymentMode || 'online'}
+                </span>
               </div>
 
               <div>
@@ -391,10 +411,10 @@ export const TransactionDetail = () => {
             </div>
 
             <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: '800', marginBottom: '12px', display: 'block', textTransform: 'uppercase', letterSpacing: '2px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: '800', marginBottom: '16px', display: 'block', textTransform: 'uppercase', letterSpacing: '2px' }}>
                 Amount
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                 <span style={{ fontSize: '40px', fontWeight: '900', color: 'var(--text-primary)', opacity: 0.8 }}>₹</span>
                 <input
                   type="text"
@@ -423,20 +443,74 @@ export const TransactionDetail = () => {
                   }}
                 />
               </div>
-              {parsedAmount && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginTop: '16px' }}>
-                  <span style={{ fontSize: '15px', fontWeight: '700' }}>= ₹{parsedAmount.result}</span>
-                  <button onClick={appendEquationToNote} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '12px', fontSize: '11px', fontWeight: '800', cursor: 'pointer', textTransform: 'uppercase' }}>
-                    Save math
-                  </button>
-                </div>
-              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, position: 'relative' }}>
-              
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Category</label>
+              {/* Payment Mode Selector */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Payment Mode</label>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 16px',
+                borderRadius: '16px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-card)',
+                minHeight: '54px'
+              }}>
+                <span style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-secondary)' }}>Payment Mode</span>
+                
+                <div style={{
+                  display: 'flex',
+                  background: 'var(--bg-main)',
+                  borderRadius: '20px',
+                  padding: '4px',
+                  border: '1px solid var(--border-color)',
+                  alignItems: 'center'
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setNewTxn(prev => ({ ...prev, paymentMode: 'cash' }))}
+                    style={{
+                      padding: '6px 16px',
+                      borderRadius: '16px',
+                      border: 'none',
+                      background: newTxn.paymentMode === 'cash' ? 'var(--text-primary)' : 'transparent',
+                      color: newTxn.paymentMode === 'cash' ? 'var(--bg-card)' : 'var(--text-tertiary)',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      outline: 'none'
+                    }}
+                  >
+                    Cash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewTxn(prev => ({ ...prev, paymentMode: 'online' }))}
+                    style={{
+                      padding: '6px 16px',
+                      borderRadius: '16px',
+                      border: 'none',
+                      background: newTxn.paymentMode === 'online' ? 'var(--text-primary)' : 'transparent',
+                      color: newTxn.paymentMode === 'online' ? 'var(--bg-card)' : 'var(--text-tertiary)',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      outline: 'none'
+                    }}
+                  >
+                    Online
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Category</label>
                 <input
                   type="text"
                   placeholder="Category (e.g. Food, Rent)"
@@ -700,18 +774,18 @@ export const TransactionDetail = () => {
                 )}
               </>
             )}
-              
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Date</label>
-                <input
-                  type="date"
-                  value={newTxn.date}
-                  max={format(new Date(), 'yyyy-MM-dd')}
-                  onChange={(e) => setNewTxn(prev => ({ ...prev, date: e.target.value }))}
-                  onClick={(e) => e.target.showPicker && e.target.showPicker()}
-                  style={inputStyle}
-                />
-              </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Date</label>
+              <input
+                type="date"
+                value={newTxn.date}
+                max={format(new Date(), 'yyyy-MM-dd')}
+                onChange={(e) => setNewTxn(prev => ({ ...prev, date: e.target.value }))}
+                onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                style={inputStyle}
+              />
+            </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-tertiary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Note</label>

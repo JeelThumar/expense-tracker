@@ -100,6 +100,7 @@ export const Profile = () => {
   const handleEraseData = async () => {
     setIsEraseModalOpen(false);
     await eraseAllData();
+    navigate('/');
   };
 
   const handleLogout = () => {
@@ -184,7 +185,7 @@ export const Profile = () => {
           width: '90px',
           height: '90px',
           borderRadius: '24px',
-          background: user?.photoURL ? `url(${user.photoURL}) center/cover` : 'linear-gradient(135deg, #333, #111)',
+          background: user?.photoURL ? `url("${user.photoURL}") center/cover` : 'linear-gradient(135deg, #333, #111)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

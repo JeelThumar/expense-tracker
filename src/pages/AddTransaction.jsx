@@ -26,7 +26,8 @@ export const AddTransaction = () => {
     isVehicle: true,
     odometer: '',
     litres: '',
-    pricePerLitre: ''
+    pricePerLitre: '',
+    paymentMode: 'online'
   });
   
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -113,7 +114,8 @@ export const AddTransaction = () => {
       isVehicle: newTxn.isVehicle,
       odometer: newTxn.odometer ? parseFloat(newTxn.odometer) : null,
       litres: newTxn.litres ? parseFloat(newTxn.litres) : null,
-      pricePerLitre: newTxn.pricePerLitre ? parseFloat(newTxn.pricePerLitre) : settings.defaultFuelPrice
+      pricePerLitre: newTxn.pricePerLitre ? parseFloat(newTxn.pricePerLitre) : settings.defaultFuelPrice,
+      paymentMode: newTxn.paymentMode || 'online'
     });
     
     navigate(-1);
@@ -198,7 +200,7 @@ export const AddTransaction = () => {
 
         {/* Amount Input */}
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <span style={{ fontSize: '16px', color: 'var(--text-secondary)', fontWeight: '500', marginBottom: '8px', display: 'block' }}>
+          <span style={{ fontSize: '16px', color: 'var(--text-secondary)', fontWeight: '500', marginBottom: '16px', display: 'block' }}>
             Amount
           </span>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
@@ -230,7 +232,7 @@ export const AddTransaction = () => {
             />
           </div>
           {parsedAmount && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '16px' }}>
               <span className="text-secondary" style={{ fontSize: '14px' }}>= <strong style={{ color: 'var(--text-primary)' }}>₹{parsedAmount.result}</strong></span>
               <button onClick={appendEquationToNote} style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', cursor: 'pointer' }}>
                 Save math to note
@@ -242,6 +244,67 @@ export const AddTransaction = () => {
         {/* Other Fields */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, position: 'relative' }}>
           
+          {/* Payment Mode Selector */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            borderRadius: '16px',
+            border: '1px solid var(--border-color)',
+            background: 'var(--bg-card)',
+            minHeight: '54px',
+            marginBottom: '8px'
+          }}>
+            <span style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-secondary)' }}>Payment Mode</span>
+            
+            <div style={{
+              display: 'flex',
+              background: 'var(--bg-main)',
+              borderRadius: '20px',
+              padding: '4px',
+              border: '1px solid var(--border-color)',
+              alignItems: 'center'
+            }}>
+              <button
+                type="button"
+                onClick={() => setNewTxn(prev => ({ ...prev, paymentMode: 'cash' }))}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '16px',
+                  border: 'none',
+                  background: newTxn.paymentMode === 'cash' ? 'var(--text-primary)' : 'transparent',
+                  color: newTxn.paymentMode === 'cash' ? 'var(--bg-card)' : 'var(--text-tertiary)',
+                  fontWeight: '700',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  outline: 'none'
+                }}
+              >
+                Cash
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewTxn(prev => ({ ...prev, paymentMode: 'online' }))}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '16px',
+                  border: 'none',
+                  background: newTxn.paymentMode === 'online' ? 'var(--text-primary)' : 'transparent',
+                  color: newTxn.paymentMode === 'online' ? 'var(--bg-card)' : 'var(--text-tertiary)',
+                  fontWeight: '700',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  outline: 'none'
+                }}
+              >
+                Online
+              </button>
+            </div>
+          </div>
+
           <div>
             <input
               type="text"
@@ -505,7 +568,8 @@ export const AddTransaction = () => {
             )}
           </>
         )}
-          
+
+
           <input
             type="date"
             value={newTxn.date}

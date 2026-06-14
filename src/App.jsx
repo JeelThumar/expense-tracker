@@ -16,6 +16,7 @@ import { AddLedger } from './pages/AddLedger.jsx';
 import { LedgerDetail } from './pages/LedgerDetail.jsx';
 import { Login } from './pages/Login.jsx';
 import { AppSettings } from './pages/AppSettings.jsx';
+import { VehicleExpenses } from './pages/VehicleExpenses.jsx';
 import { useAppContext } from './context/AppContext.jsx';
 
 const AuthWrapper = () => {
@@ -46,6 +47,7 @@ const AuthWrapper = () => {
         <Route path="/ledger/:id" element={<LedgerDetail />} />
         <Route path="/profile-info" element={<ProfileInfo />} />
         <Route path="/app-settings" element={<AppSettings />} />
+        <Route path="/vehicle-expenses" element={<VehicleExpenses />} />
       </Routes>
     </BrowserRouter>
   );

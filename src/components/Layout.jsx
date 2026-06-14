@@ -113,7 +113,7 @@ export const Layout = () => {
             onClick={() => {
               if (location.pathname.startsWith('/friends/') && location.pathname !== '/friends') {
                 const friendName = location.pathname.slice(9);
-                navigate(`/add?friend=${friendName}`);
+                navigate(`/add-ledger?friend=${friendName}`);
               } else {
                 navigate(location.pathname === '/friends' ? '/add-ledger' : '/add');
               }
